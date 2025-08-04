@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronRight, Move, Trash2, Eye, EyeOff } from 'lucide-react';
 
 import PersonalInfoForm from './forms/PersonalInfoForm';
+import EnhancedPersonalInfoForm from './EnhancedPersonalInfoForm';
 import EducationForm from './forms/EducationForm';
 import ExperienceForm from './forms/ExperienceForm';
 import ProjectForm from './forms/ProjectForm';
@@ -13,7 +14,7 @@ import AchievementsForm from './forms/AchievementsForm';
 import SummaryForm from './forms/SummaryForm';
 
 const FORM_COMPONENTS = {
-  personalInfo: PersonalInfoForm,
+  personalInfo: EnhancedPersonalInfoForm,
   education: EducationForm,
   experience: ExperienceForm,
   projects: ProjectForm,
