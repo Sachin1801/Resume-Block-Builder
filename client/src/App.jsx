@@ -295,16 +295,21 @@ function AppContent() {
     setError(null);
     
     try {
+      const latexContent = latexTemplate(code);
+      console.log('LaTeX content being sent:', latexContent);
+      
       const response = await fetch('http://localhost:3001/compile', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ latex: latexTemplate(code) })
+        body: JSON.stringify({ latex: latexContent })
       });
       
       if (!response.ok) {
-        throw new Error('Compilation failed');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Compilation error:', errorData);
+        throw new Error(errorData.error || 'Compilation failed');
       }
       
       const blob = await response.blob();

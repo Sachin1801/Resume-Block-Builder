@@ -61,6 +61,11 @@ app.post('/compile', async (req, res) => {
     console.log('LaTeX code length:', latexCode.length);
     console.log('First 200 chars:', latexCode.substring(0, 200));
     
+    // Log the full LaTeX for debugging
+    console.log('\n=== FULL LATEX CONTENT ===');
+    console.log(latexCode);
+    console.log('=== END LATEX CONTENT ===\n');
+    
     // Don't use timeout promise for now, let the stream handle it
     
     // Create PDF stream from string
