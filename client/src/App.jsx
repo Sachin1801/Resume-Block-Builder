@@ -4,11 +4,17 @@ import {
   Download, Eye, FileText, Play, LogOut, User
 } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+
 import ResumeBuilder from './components/ResumeBuilder';
+import ResizeHandle from './components/ResizeHandle';
 import AuthModal from './components/AuthModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { resumeService } from './services/resumeService';
-import ResizeHandle from './components/ResizeHandle';
 
 // Simplified LaTeX template for testing
 const SIMPLE_LATEX_TEMPLATE = `\\documentclass[letterpaper,11pt]{article}
@@ -119,42 +125,55 @@ const latexTemplate = (content) => ENHANCED_LATEX_TEMPLATE.replace('{{CONTENT}}'
 
 // Manual compilation approach - no debouncing needed
 
-// Simple PDF Viewer
+// Enhanced PDF Viewer with shadcn/ui components
 function PDFViewer({ pdfUrl, isCompiling, error }) {
   if (error) {
     return (
-      <div className="text-center py-8 text-red-500 dark:text-red-400">
-        <div className="mb-3">❌</div>
-        <p className="text-sm">Compilation Error</p>
-        <p className="text-xs mt-2 text-gray-500 dark:text-gray-400">{error}</p>
+      <div className="w-full h-full flex items-center justify-center p-8">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertDescription className="text-center">
+            <div className="mb-3 text-2xl">❌</div>
+            <p className="text-sm font-medium">Compilation Error</p>
+            <p className="text-xs mt-2 text-muted-foreground">{error}</p>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
 
   if (isCompiling) {
     return (
-      <div className="text-center py-8 text-blue-500 dark:text-blue-400">
-        <div className="animate-spin mb-3">⚙️</div>
-        <p className="text-sm">Compiling LaTeX...</p>
+      <div className="w-full h-full flex items-center justify-center p-8">
+        <Card className="max-w-md text-center">
+          <CardContent className="pt-6">
+            <div className="animate-spin mb-3 text-2xl">⚙️</div>
+            <p className="text-sm font-medium text-primary">Compiling LaTeX...</p>
+            <p className="text-xs mt-2 text-muted-foreground">Please wait while we generate your PDF</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   if (!pdfUrl) {
     return (
-      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-        <Eye className="w-12 h-12 mx-auto mb-3 opacity-50" />
-        <p>Click "Compile PDF" to generate your resume preview</p>
-        <p className="text-sm mt-2">Fill out the form sections first, then compile</p>
+      <div className="w-full h-full flex items-center justify-center p-8">
+        <Card className="max-w-md text-center">
+          <CardContent className="pt-6">
+            <Eye className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p className="text-sm font-medium">Click "Compile PDF" to generate your resume preview</p>
+            <p className="text-xs mt-2 text-muted-foreground">Fill out the form sections first, then compile</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+    <div className="w-full h-full flex items-center justify-center bg-muted/30">
       <iframe
         src={pdfUrl}
-        className="w-full h-full border-0"
+        className="w-full h-full border-0 rounded-lg shadow-sm"
         title="PDF Preview"
       />
     </div>
@@ -334,10 +353,10 @@ function AppContent() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg text-white">
+              <div className="p-2 bg-primary rounded-lg text-primary-foreground">
                 <FileText className="w-6 h-6" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-2xl font-bold">
                 Advanced Resume Builder
               </h1>
             </div>
@@ -346,69 +365,77 @@ function AppContent() {
               {/* User Menu */}
               {user ? (
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                    <User className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-                    <span className="text-sm text-gray-700 dark:text-gray-200">{user.email}</span>
-                  </div>
-                  <button
+                  <Badge variant="secondary" className="flex items-center gap-2 px-3 py-1.5">
+                    <User className="w-4 h-4" />
+                    <span className="text-sm">{user.email}</span>
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={signOut}
-                    className="flex items-center gap-2 px-3 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+                    className="gap-2"
                   >
                     <LogOut className="w-4 h-4" />
-                    <span className="text-sm">Sign Out</span>
-                  </button>
+                    Sign Out
+                  </Button>
                 </div>
               ) : (
-                <button
+                <Button
+                  variant="default"
+                  size="sm"
                   onClick={() => setShowAuthModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+                  className="gap-2"
                 >
                   <User className="w-4 h-4" />
                   Sign In
-                </button>
+                </Button>
               )}
 
+              <Separator orientation="vertical" className="h-6" />
+
               {/* View Toggle */}
-              <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                <button
+              <div className="flex items-center bg-muted rounded-lg p-1">
+                <Button
+                  variant={currentView === 'builder' ? 'default' : 'ghost'}
+                  size="sm"
                   onClick={() => setCurrentView('builder')}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    currentView === 'builder'
-                      ? 'bg-blue-500 text-white shadow-sm'
-                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
-                  }`}
+                  className="text-xs"
                 >
                   Builder
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant={currentView === 'code' ? 'default' : 'ghost'}
+                  size="sm"
                   onClick={() => setCurrentView('code')}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    currentView === 'code'
-                      ? 'bg-blue-500 text-white shadow-sm'
-                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
-                  }`}
+                  className="text-xs"
                 >
                   Code
-                </button>
+                </Button>
               </div>
 
-              <button
+              <Separator orientation="vertical" className="h-6" />
+
+              <Button
                 onClick={handleManualCompile}
                 disabled={isCompiling || !latexCode?.trim()}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                variant="default"
+                size="sm"
+                className="gap-2"
               >
                 <Play className="w-4 h-4" />
                 {isCompiling ? 'Compiling...' : 'Compile PDF'}
-              </button>
+              </Button>
 
-              <button
+              <Button
                 onClick={downloadPDF}
                 disabled={!pdfUrl}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                variant="secondary"
+                size="sm"
+                className="gap-2"
               >
                 <Download className="w-4 h-4" />
                 Download PDF
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -450,8 +477,10 @@ function AppContent() {
               />
               
               {error && (
-                <div className="absolute bottom-4 left-4 right-4 p-4 bg-red-100 dark:bg-red-900 border border-red-300 dark:border-red-700 rounded-lg">
-                  <p className="text-red-700 dark:text-red-200 text-sm">{error}</p>
+                <div className="absolute bottom-4 left-4 right-4">
+                  <Alert variant="destructive">
+                    <AlertDescription className="text-sm">{error}</AlertDescription>
+                  </Alert>
                 </div>
               )}
             </div>
@@ -475,17 +504,19 @@ function AppContent() {
           }}
         >
           <div className="h-full flex flex-col">
-            <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <Eye className="text-green-500" />
-                Live Preview
+            <div className="p-4 bg-background border-b">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <Eye className="text-green-500" />
+                  Live Preview
+                </h2>
                 {isCompiling && (
-                  <div className="ml-auto flex items-center gap-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                    <span className="text-sm text-gray-500">Compiling...</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                    <span className="text-sm text-muted-foreground">Compiling...</span>
                   </div>
                 )}
-              </h2>
+              </div>
             </div>
             
             <div className="flex-1 overflow-auto">

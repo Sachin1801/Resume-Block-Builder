@@ -9,13 +9,12 @@ import {
   TrendingUp, Target, Zap, Edit3, Trash2, Move, Save
 } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
 import SortableSection from './SortableSection';
-import PersonalInfoForm from './forms/PersonalInfoForm';
-import EducationForm from './forms/EducationForm';
-import ExperienceForm from './forms/ExperienceForm';
-import ProjectForm from './forms/ProjectForm';
-import SkillsForm from './forms/SkillsForm';
-import AchievementsForm from './forms/AchievementsForm';
 
 // Resume section types and their configurations
 const SECTION_TYPES = {
@@ -24,7 +23,6 @@ const SECTION_TYPES = {
     title: 'Personal Information',
     icon: User,
     required: true,
-    component: PersonalInfoForm,
     latexTemplate: (data) => {
       if (!data.fullName && !data.email && !data.phone) return '';
       
@@ -47,7 +45,6 @@ const SECTION_TYPES = {
     title: 'Professional Summary',
     icon: Target,
     required: false,
-    component: null, // Simple text area
     latexTemplate: (data) => {
       if (!data.content || !data.content.trim()) return '';
       return `
@@ -62,7 +59,6 @@ ${data.content}
     title: 'Education',
     icon: BookOpen,
     required: false,
-    component: EducationForm,
     latexTemplate: (data) => {
       if (!data.entries || data.entries.length === 0) return '';
       // Filter only enabled entries
@@ -91,7 +87,6 @@ ${enabledEntries.map(entry => `
     title: 'Experience',
     icon: Briefcase,
     required: false,
-    component: ExperienceForm,
     latexTemplate: (data) => {
       if (!data.entries || data.entries.length === 0) return '';
       // Filter only enabled entries
@@ -120,7 +115,6 @@ ${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeIte
     title: 'Projects',
     icon: GitBranch,
     required: false,
-    component: ProjectForm,
     latexTemplate: (data) => {
       if (!data.entries || data.entries.length === 0) return '';
       // Filter only enabled entries
@@ -148,7 +142,6 @@ ${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeIte
     title: 'Technical Skills',
     icon: Award,
     required: false,
-    component: SkillsForm,
     latexTemplate: (data) => {
       if (!data.categories || Object.keys(data.categories).length === 0) return '';
       const hasContent = Object.values(data.categories).some(cat => 
@@ -180,7 +173,6 @@ ${Object.entries(data.categories).filter(([category, skills]) =>
     title: 'Achievements',
     icon: TrendingUp,
     required: false,
-    component: AchievementsForm,
     latexTemplate: (data) => {
       if (!data.entries || data.entries.length === 0) return '';
       // Filter enabled entries with valid titles
@@ -440,34 +432,15 @@ export default function ResumeBuilder({ onLatexChange, user, activeResumeId, onS
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {sections.filter(s => s.enabled).length} of {sections.length} sections enabled
-              {user && isSaving && ' • Saving...'}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {user && (
-              <button
-                onClick={async () => {
-                  // Save all unsaved sections
-                  const unsavedSections = sections.filter(s => !s.isSaved);
-                  for (const section of unsavedSections) {
-                    await saveSection(section.id, section.data);
-                  }
-                }}
-                disabled={!sections.some(s => !s.isSaved) || isSaving}
-                className="flex items-center gap-2 px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Save className="w-4 h-4" />
-                Save All
-              </button>
-            )}
-            <button
-              onClick={() => setShowAddSection(true)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Add Section
-            </button>
-          </div>
+          <button
+            onClick={() => setShowAddSection(true)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Add Section
+          </button>
         </div>
       </div>
 
@@ -508,67 +481,39 @@ export default function ResumeBuilder({ onLatexChange, user, activeResumeId, onS
         </DndContext>
       </div>
 
-      {/* Add Section Modal */}
-      <AnimatePresence>
-        {showAddSection && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowAddSection(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6"
-            >
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-                Add New Section
-              </h3>
+      {/* Add Section Dialog */}
+      <Dialog open={showAddSection} onOpenChange={setShowAddSection}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Section</DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid grid-cols-2 gap-3">
+            {Object.entries(SECTION_TYPES).map(([key, sectionType]) => {
+              const Icon = sectionType.icon;
+              const isAdded = sections.some(s => s.type === key);
               
-              <div className="grid grid-cols-2 gap-3">
-                {Object.entries(SECTION_TYPES).map(([key, sectionType]) => {
-                  const Icon = sectionType.icon;
-                  const isAdded = sections.some(s => s.type === key);
-                  
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => addSection(key)}
-                      disabled={isAdded && sectionType.required}
-                      className={`p-3 rounded-lg border-2 transition-all text-left ${
-                        isAdded && sectionType.required
-                          ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                          : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50 dark:border-gray-600 dark:hover:border-blue-400'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <Icon className="w-4 h-4" />
-                        <span className="font-medium text-sm">{sectionType.title}</span>
-                      </div>
-                      {isAdded && sectionType.required && (
-                        <span className="text-xs text-gray-400">Already added</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
-                <button
-                  onClick={() => setShowAddSection(false)}
-                  className="w-full px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              return (
+                <Button
+                  key={key}
+                  variant="outline"
+                  className="h-auto p-4 flex flex-col items-start gap-2"
+                  onClick={() => addSection(key)}
+                  disabled={isAdded && sectionType.required}
                 >
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                  <div className="flex items-center gap-2">
+                    <Icon className="w-4 h-4" />
+                    <span className="font-medium text-sm">{sectionType.title}</span>
+                  </div>
+                  {isAdded && sectionType.required && (
+                    <span className="text-xs text-muted-foreground">Already added</span>
+                  )}
+                </Button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
