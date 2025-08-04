@@ -74,11 +74,13 @@ export default function SortableSection({
     setHasChanges(false);
   };
 
-  // Handle edit
-  const handleEdit = () => {
-    setIsEditing(true);
-    setIsSaved(false);
-  };
+  // Handle clicking on a saved section - automatically enter edit mode
+  useEffect(() => {
+    if (isActive && isSaved) {
+      setIsEditing(true);
+      setIsSaved(false);
+    }
+  }, [isActive, isSaved]);
 
   // Sync with parent data changes
   useEffect(() => {
@@ -120,7 +122,7 @@ export default function SortableSection({
             ? 'bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20' 
             : 'bg-muted/50'
         }`}
-        onClick={() => !isSaved && onToggle()}
+        onClick={onToggle}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -152,36 +154,19 @@ export default function SortableSection({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Save/Edit buttons */}
-            {user && !sectionType.required && (
-              <>
-                {isSaved ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEdit();
-                      onToggle();
-                    }}
-                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                ) : isEditing && hasChanges && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSave();
-                    }}
-                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                  >
-                    <Save className="w-4 h-4" />
-                  </Button>
-                )}
-              </>
+            {/* Save button - show for all sections when user is logged in */}
+            {user && !isSaved && hasChanges && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSave();
+                }}
+                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+              >
+                <Save className="w-4 h-4" />
+              </Button>
             )}
 
             {/* Toggle visibility button */}
