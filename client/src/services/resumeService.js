@@ -3,9 +3,13 @@ import { supabase } from '../lib/supabase';
 export const resumeService = {
   // Get all resumes for the current user
   async getUserResumes() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+    
     const { data, error } = await supabase
       .from('resumes')
       .select('*')
+      .eq('user_id', user.id)
       .order('updated_at', { ascending: false });
     
     if (error) throw error;
@@ -26,7 +30,7 @@ export const resumeService = {
       .from('resume_sections')
       .select('*')
       .eq('resume_id', resumeId)
-      .order('position');
+      .order('position', { ascending: true });
     
     if (sectionsError) throw sectionsError;
 

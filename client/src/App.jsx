@@ -171,7 +171,34 @@ function AppContent() {
   const [currentView, setCurrentView] = useState('builder'); // 'builder' or 'code'
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [activeResumeId, setActiveResumeId] = useState(null);
-  const [sections, setSections] = useState([]);
+  const [sections, setSections] = useState(null); // Initialize as null to detect first load
+  
+  // Load user's active resume when authenticated
+  useEffect(() => {
+    if (user && !loading && !activeResumeId) {
+      loadUserResume();
+    }
+  }, [user, loading]);
+  
+  const loadUserResume = async () => {
+    try {
+      console.log('Loading user resumes...');
+      const { resumeService } = await import('./services/resumeService');
+      const resumes = await resumeService.getUserResumes();
+      console.log('User resumes loaded:', resumes);
+      
+      if (resumes && resumes.length > 0) {
+        // Find active resume or use the first one
+        const activeResume = resumes.find(r => r.is_active) || resumes[0];
+        console.log('Setting active resume:', activeResume.id);
+        setActiveResumeId(activeResume.id);
+      } else {
+        console.log('No resumes found for user');
+      }
+    } catch (error) {
+      console.error('Error loading user resume:', error);
+    }
+  };
   
   // Panel sizing state
   const [leftPanelWidth, setLeftPanelWidth] = useState(() => {
@@ -403,6 +430,7 @@ function AppContent() {
               user={user}
               activeResumeId={activeResumeId}
               onSectionsChange={setSections}
+              initialSections={sections}
             />
           ) : (
             <div className="flex-1 relative">

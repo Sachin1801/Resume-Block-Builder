@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -6,7 +6,7 @@ import {
   Plus, User, BookOpen, Briefcase, GitBranch, Award, 
   Mail, Phone, MapPin, Globe, Github, Linkedin, 
   GraduationCap, Calendar, Building, Percent,
-  TrendingUp, Target, Zap, Edit3, Trash2, Move
+  TrendingUp, Target, Zap, Edit3, Trash2, Move, Save
 } from 'lucide-react';
 
 import SortableSection from './SortableSection';
@@ -65,11 +65,15 @@ ${data.content}
     component: EducationForm,
     latexTemplate: (data) => {
       if (!data.entries || data.entries.length === 0) return '';
+      // Filter only enabled entries
+      const enabledEntries = data.entries.filter(entry => entry.enabled !== false);
+      if (enabledEntries.length === 0) return '';
+      
       return `
 \\section{\\textbf{Education}}
 \\vspace{-5pt}
 \\resumeSubHeadingListStart
-${data.entries.map(entry => `
+${enabledEntries.map(entry => `
   \\resumeSubheading
     {${entry.institution || 'Institution'}}{${entry.startDate || 'Start'} - ${entry.endDate || 'End'}}
     {${entry.degree || 'Degree'}${entry.gpa ? `, \\textbf{GPA: ${entry.gpa}}` : ''}}{${entry.location || 'Location'}}
@@ -90,11 +94,15 @@ ${data.entries.map(entry => `
     component: ExperienceForm,
     latexTemplate: (data) => {
       if (!data.entries || data.entries.length === 0) return '';
+      // Filter only enabled entries
+      const enabledEntries = data.entries.filter(entry => entry.enabled !== false);
+      if (enabledEntries.length === 0) return '';
+      
       return `
 \\section{Experience}
 \\vspace{-2pt}
 \\resumeSubHeadingListStart
-${data.entries.map(entry => `
+${enabledEntries.map(entry => `
   \\resumeSubheading
     {${entry.company || 'Company'}}{${entry.startDate || 'Start'} – ${entry.endDate || 'End'}}
     {${entry.position || 'Position'}}{}
@@ -115,11 +123,15 @@ ${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeIte
     component: ProjectForm,
     latexTemplate: (data) => {
       if (!data.entries || data.entries.length === 0) return '';
+      // Filter only enabled entries
+      const enabledEntries = data.entries.filter(entry => entry.enabled !== false);
+      if (enabledEntries.length === 0) return '';
+      
       return `
 \\section{Projects \\hfill \\textit{\\small (Click on Title to open project)}}
 \\vspace{-10pt}
 \\resumeSubHeadingListStart
-${data.entries.map(entry => `
+${enabledEntries.map(entry => `
   \\resumeProjectHeading
     {${entry.url ? `\\href{${entry.url}}{\\textbf{${entry.name || 'Project'}}}` : `\\textbf{${entry.name || 'Project'}}`} $|$ \\emph{${entry.technologies || 'Technologies'}}}{${entry.date || 'Date'}}
     ${entry.achievements && entry.achievements.length > 0 && entry.achievements.some(a => a.trim()) ? `\\resumeItemListStart
@@ -171,7 +183,10 @@ ${Object.entries(data.categories).filter(([category, skills]) =>
     component: AchievementsForm,
     latexTemplate: (data) => {
       if (!data.entries || data.entries.length === 0) return '';
-      const validEntries = data.entries.filter(entry => entry.title && entry.title.trim());
+      // Filter enabled entries with valid titles
+      const validEntries = data.entries.filter(entry => 
+        entry.title && entry.title.trim() && entry.enabled !== false
+      );
       if (validEntries.length === 0) return '';
       
       return `
@@ -202,10 +217,75 @@ const DEFAULT_SECTIONS = [
   { id: 'summary', type: 'summary', data: { content: '' }, enabled: false }
 ];
 
-export default function ResumeBuilder({ onLatexChange }) {
-  const [sections, setSections] = useState(DEFAULT_SECTIONS);
+export default function ResumeBuilder({ onLatexChange, user, activeResumeId, onSectionsChange, initialSections }) {
+  const [sections, setSections] = useState(initialSections || DEFAULT_SECTIONS);
   const [activeSection, setActiveSection] = useState(null);
   const [showAddSection, setShowAddSection] = useState(false);
+  const [currentResumeId, setCurrentResumeId] = useState(activeResumeId);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const updateTimeoutRef = useRef(null);
+
+  // Remove this useEffect entirely to prevent circular updates
+
+  // Create or load resume when user logs in
+  useEffect(() => {
+    if (user && activeResumeId && activeResumeId !== currentResumeId) {
+      setCurrentResumeId(activeResumeId);
+      loadResume(activeResumeId);
+    } else if (user && !activeResumeId && !currentResumeId) {
+      // Only create new resume if user has no resumes
+      createDefaultResume();
+    }
+  }, [user, activeResumeId]);
+
+  const createDefaultResume = async () => {
+    try {
+      console.log('Creating default resume...');
+      const { resumeService } = await import('../services/resumeService');
+      
+      // First check if user already has resumes
+      const existingResumes = await resumeService.getUserResumes();
+      if (existingResumes && existingResumes.length > 0) {
+        console.log('User already has resumes, not creating new one');
+        return;
+      }
+      
+      const resume = await resumeService.createResume('My Resume');
+      console.log('Created new resume:', resume.id);
+      setCurrentResumeId(resume.id);
+      // Save default sections
+      await resumeService.saveSections(resume.id, sections);
+    } catch (error) {
+      console.error('Error creating resume:', error);
+    }
+  };
+
+  const loadResume = async (resumeId) => {
+    try {
+      console.log('Loading resume with ID:', resumeId);
+      const { resumeService } = await import('../services/resumeService');
+      const resume = await resumeService.getResume(resumeId);
+      console.log('Resume loaded:', resume);
+      
+      if (resume.sections && resume.sections.length > 0) {
+        // Convert database sections to component format
+        const loadedSections = resume.sections.map(s => ({
+          id: s.id,
+          type: s.type,
+          data: s.data,
+          enabled: s.enabled,
+          isSaved: true
+        }));
+        console.log('Setting sections:', loadedSections);
+        setSections(loadedSections);
+      } else {
+        console.log('No sections found in resume');
+      }
+    } catch (error) {
+      console.error('Error loading resume:', error);
+    }
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -234,9 +314,33 @@ export default function ResumeBuilder({ onLatexChange }) {
     const latex = generateLatex();
     console.log('Generated LaTeX:', latex ? 'Content generated' : 'Empty content');
     onLatexChange(latex);
-  }, [sections, generateLatex]);
+    
+    // Debounce parent updates to prevent jitter
+    if (onSectionsChange && !isDragging) {
+      // Clear existing timeout
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+      
+      // Set new timeout
+      updateTimeoutRef.current = setTimeout(() => {
+        onSectionsChange(sections);
+      }, 100); // 100ms debounce
+    }
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+    };
+  }, [sections, generateLatex, onLatexChange, onSectionsChange, isDragging]);
 
   // Handle section reordering
+  const handleDragStart = () => {
+    setIsDragging(true);
+  };
+
   const handleDragEnd = (event) => {
     const { active, over } = event;
     
@@ -247,15 +351,53 @@ export default function ResumeBuilder({ onLatexChange }) {
         return arrayMove(sections, oldIndex, newIndex);
       });
     }
+    
+    setIsDragging(false);
   };
 
   // Update section data
   const updateSectionData = (sectionId, newData) => {
     setSections(prev => prev.map(section => 
       section.id === sectionId 
-        ? { ...section, data: { ...section.data, ...newData } }
+        ? { ...section, data: { ...section.data, ...newData }, isSaved: false }
         : section
     ));
+  };
+
+  // Save section to database
+  const saveSection = async (sectionId, data) => {
+    if (!user || !currentResumeId) {
+      console.log('Cannot save: user or resume ID missing', { user: !!user, currentResumeId });
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      console.log('Saving section:', sectionId, 'for resume:', currentResumeId);
+      const { resumeService } = await import('../services/resumeService');
+      
+      // Find the section
+      const sectionToSave = sections.find(s => s.id === sectionId);
+      if (!sectionToSave) return;
+      
+      // Save all sections to maintain order
+      const updatedSections = sections.map(s => 
+        s.id === sectionId 
+          ? { ...s, data, isSaved: true }
+          : s
+      );
+      
+      console.log('Saving sections to database:', updatedSections);
+      await resumeService.saveSections(currentResumeId, updatedSections);
+      console.log('Sections saved successfully');
+      
+      // Update local state
+      setSections(updatedSections);
+    } catch (error) {
+      console.error('Error saving section:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Add new section
@@ -263,10 +405,13 @@ export default function ResumeBuilder({ onLatexChange }) {
     const newSection = {
       id: `${type}-${Date.now()}`,
       type,
-      data: type === 'summary' ? { content: '' } : { entries: [] }
+      data: type === 'summary' ? { content: '' } : { entries: [] },
+      enabled: true,
+      isSaved: false
     };
     setSections(prev => [...prev, newSection]);
     setShowAddSection(false);
+    setActiveSection(newSection.id); // Automatically open new section
   };
 
   // Remove section
@@ -295,15 +440,34 @@ export default function ResumeBuilder({ onLatexChange }) {
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {sections.filter(s => s.enabled).length} of {sections.length} sections enabled
+              {user && isSaving && ' • Saving...'}
             </p>
           </div>
-          <button
-            onClick={() => setShowAddSection(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Add Section
-          </button>
+          <div className="flex items-center gap-2">
+            {user && (
+              <button
+                onClick={async () => {
+                  // Save all unsaved sections
+                  const unsavedSections = sections.filter(s => !s.isSaved);
+                  for (const section of unsavedSections) {
+                    await saveSection(section.id, section.data);
+                  }
+                }}
+                disabled={!sections.some(s => !s.isSaved) || isSaving}
+                className="flex items-center gap-2 px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Save className="w-4 h-4" />
+                Save All
+              </button>
+            )}
+            <button
+              onClick={() => setShowAddSection(true)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Add Section
+            </button>
+          </div>
         </div>
       </div>
 
@@ -312,6 +476,7 @@ export default function ResumeBuilder({ onLatexChange }) {
         <DndContext 
           sensors={sensors}
           collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
           <SortableContext 
@@ -333,6 +498,8 @@ export default function ResumeBuilder({ onLatexChange }) {
                     onUpdate={(data) => updateSectionData(section.id, data)}
                     onRemove={() => removeSection(section.id)}
                     onToggleEnabled={() => toggleSectionEnabled(section.id)}
+                    onSave={saveSection}
+                    user={user}
                   />
                 );
               })}

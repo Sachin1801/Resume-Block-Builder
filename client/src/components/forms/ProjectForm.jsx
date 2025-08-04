@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2, GitBranch, Calendar, Globe, Code } from 'lucide-react';
+import { Plus, Trash2, GitBranch, Calendar, Globe, Code, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ProjectForm({ data, onChange }) {
@@ -12,7 +12,8 @@ export default function ProjectForm({ data, onChange }) {
       url: '',
       technologies: '',
       date: '',
-      achievements: ['']
+      achievements: [''],
+      enabled: true // Add enabled flag for each entry
     };
     onChange({ entries: [...entries, newEntry] });
   };
@@ -61,6 +62,13 @@ export default function ProjectForm({ data, onChange }) {
     onChange({ entries: updatedEntries });
   };
 
+  const toggleEntry = (id) => {
+    const updatedEntries = entries.map(entry =>
+      entry.id === id ? { ...entry, enabled: entry.enabled !== false } : entry
+    );
+    onChange({ entries: updatedEntries });
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -87,13 +95,29 @@ export default function ProjectForm({ data, onChange }) {
               <h4 className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
                 <GitBranch className="w-4 h-4" />
                 Project {index + 1}
+                {entry.enabled === false && (
+                  <span className="text-xs text-gray-500 dark:text-gray-400">(Hidden)</span>
+                )}
               </h4>
-              <button
-                onClick={() => removeEntry(entry.id)}
-                className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => toggleEntry(entry.id)}
+                  className={`p-1.5 rounded-lg transition-colors ${
+                    entry.enabled !== false
+                      ? 'text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20' 
+                      : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
+                  title={entry.enabled !== false ? 'Hide from resume' : 'Show in resume'}
+                >
+                  {entry.enabled !== false ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={() => removeEntry(entry.id)}
+                  className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3">

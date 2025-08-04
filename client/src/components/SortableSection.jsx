@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronRight, Move, Trash2, Eye, EyeOff } from 'lucide-react';
+import { ChevronDown, ChevronRight, Move, Trash2, Eye, EyeOff, Save, Edit, Check } from 'lucide-react';
 
 import PersonalInfoForm from './forms/PersonalInfoForm';
 import EnhancedPersonalInfoForm from './EnhancedPersonalInfoForm';
@@ -30,7 +30,9 @@ export default function SortableSection({
   onToggle, 
   onUpdate, 
   onRemove,
-  onToggleEnabled
+  onToggleEnabled,
+  onSave,
+  user
 }) {
   const {
     attributes,
@@ -48,6 +50,33 @@ export default function SortableSection({
 
   const Icon = sectionType.icon;
   const FormComponent = FORM_COMPONENTS[section.type];
+  const [isSaved, setIsSaved] = useState(section.isSaved || false);
+  const [isEditing, setIsEditing] = useState(!section.isSaved);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [localData, setLocalData] = useState(section.data);
+
+  const handleSave = async () => {
+    if (onSave) {
+      await onSave(section.id, localData);
+    }
+    setIsSaved(true);
+    setIsEditing(false);
+    setHasChanges(false);
+    onUpdate(localData);
+  };
+
+  const handleEdit = () => {
+    setIsEditing(true);
+    setLocalData(section.data); // Reset local data to current section data
+    onToggle(); // Expand the section when editing
+  };
+
+  const handleDataChange = (newData) => {
+    setLocalData(newData);
+    setHasChanges(true);
+    // Update parent component to trigger LaTeX regeneration
+    onUpdate(newData);
+  };
 
   // Count items in section for display
   const getItemCount = () => {
@@ -79,8 +108,12 @@ export default function SortableSection({
     >
       {/* Section Header */}
       <div 
-        className="p-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 cursor-pointer"
-        onClick={onToggle}
+        className={`p-4 border-b border-gray-200 dark:border-gray-600 cursor-pointer transition-colors ${
+          isSaved 
+            ? 'bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20' 
+            : 'bg-gray-50 dark:bg-gray-700'
+        }`}
+        onClick={() => !isSaved && onToggle()}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -97,17 +130,49 @@ export default function SortableSection({
               <Icon className="w-4 h-4" />
             </div>
             
-            <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 {sectionType.title}
+                {isSaved && <Check className="w-4 h-4 text-green-500" />}
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 {getItemCount()} {getItemCount() === 1 ? 'item' : 'items'}
+                {isSaved && ' • Saved'}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Save/Edit button */}
+            {user && (
+              <>
+                {!isSaved && isEditing && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSave();
+                    }}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    Save
+                  </button>
+                )}
+                {isSaved && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit();
+                    }}
+                    className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                    title="Edit section"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                )}
+              </>
+            )}
+
             {/* Toggle visibility button */}
             <button
               onClick={(e) => {
@@ -136,16 +201,18 @@ export default function SortableSection({
               </button>
             )}
             
-            <div className="text-gray-400 dark:text-gray-500">
-              {isActive ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-            </div>
+            {!isSaved && (
+              <div className="text-gray-400 dark:text-gray-500">
+                {isActive ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Section Content */}
       <AnimatePresence>
-        {isActive && (
+        {(isActive && isEditing) && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -156,8 +223,8 @@ export default function SortableSection({
             <div className="p-4">
               {FormComponent ? (
                 <FormComponent
-                  data={section.data}
-                  onChange={onUpdate}
+                  data={localData}
+                  onChange={handleDataChange}
                 />
               ) : (
                 <div className="text-gray-500 dark:text-gray-400 text-center py-8">
@@ -168,6 +235,113 @@ export default function SortableSection({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Saved Section Preview */}
+      {isSaved && !isEditing && (
+        <div className="p-4 bg-gray-50/50 dark:bg-gray-800/50">
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            {getSectionPreview(section.type, localData)}
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+// Helper function to generate section preview
+function getSectionPreview(type, data) {
+  if (!data) return 'No data';
+  
+  switch (type) {
+    case 'personalInfo':
+      return (
+        <div className="space-y-1">
+          {data.fullName && <div className="font-medium">{data.fullName}</div>}
+          {data.email && <div>{data.email}</div>}
+          {data.location && <div>{data.location}</div>}
+        </div>
+      );
+    
+    case 'summary':
+      return data.content ? (
+        <div className="line-clamp-3">{data.content}</div>
+      ) : 'No summary';
+    
+    case 'education':
+      return data.entries?.length ? (
+        <div className="space-y-2">
+          {data.entries.slice(0, 2).map((entry, idx) => (
+            <div key={idx}>
+              <span className="font-medium">{entry.institution}</span> • {entry.degree}
+            </div>
+          ))}
+          {data.entries.length > 2 && (
+            <div className="text-gray-500">+{data.entries.length - 2} more</div>
+          )}
+        </div>
+      ) : 'No education entries';
+    
+    case 'experience':
+      return data.entries?.length ? (
+        <div className="space-y-2">
+          {data.entries.slice(0, 2).map((entry, idx) => (
+            <div key={idx}>
+              <span className="font-medium">{entry.position}</span> at {entry.company}
+            </div>
+          ))}
+          {data.entries.length > 2 && (
+            <div className="text-gray-500">+{data.entries.length - 2} more</div>
+          )}
+        </div>
+      ) : 'No experience entries';
+    
+    case 'projects':
+      return data.entries?.length ? (
+        <div className="space-y-2">
+          {data.entries.slice(0, 2).map((entry, idx) => (
+            <div key={idx}>
+              <span className="font-medium">{entry.name}</span>
+              {entry.technologies && <span className="text-gray-500"> • {entry.technologies}</span>}
+            </div>
+          ))}
+          {data.entries.length > 2 && (
+            <div className="text-gray-500">+{data.entries.length - 2} more</div>
+          )}
+        </div>
+      ) : 'No projects';
+    
+    case 'skills':
+      const totalSkills = Object.values(data.categories || {}).reduce((acc, cat) => 
+        acc + (cat.advanced?.length || 0) + (cat.intermediate?.length || 0), 0
+      );
+      return totalSkills > 0 ? (
+        <div>
+          {Object.entries(data.categories || {}).slice(0, 2).map(([category, skills]) => (
+            <div key={category}>
+              <span className="font-medium">{category}:</span> {
+                [...(skills.advanced || []), ...(skills.intermediate || [])].slice(0, 3).join(', ')
+              }
+            </div>
+          ))}
+          {totalSkills > 6 && <div className="text-gray-500">+{totalSkills - 6} more skills</div>}
+        </div>
+      ) : 'No skills added';
+    
+    case 'achievements':
+      return data.entries?.length ? (
+        <div className="space-y-1">
+          {data.entries.slice(0, 2).map((entry, idx) => (
+            <div key={idx} className="line-clamp-1">
+              • {entry.title}
+            </div>
+          ))}
+          {data.entries.length > 2 && (
+            <div className="text-gray-500">+{data.entries.length - 2} more</div>
+          )}
+        </div>
+      ) : 'No achievements';
+    
+    default:
+      return 'No preview available';
+  }
 }

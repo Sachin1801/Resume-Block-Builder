@@ -3,7 +3,7 @@ import { User, Mail, Phone, MapPin, Globe, Github, Linkedin } from 'lucide-react
 
 export default function PersonalInfoForm({ data, onChange }) {
   const handleInputChange = (field, value) => {
-    onChange({ [field]: value });
+    onChange({ ...data, [field]: value });
   };
 
   return (

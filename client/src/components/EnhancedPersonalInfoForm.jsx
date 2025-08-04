@@ -23,7 +23,7 @@ export default function EnhancedPersonalInfoForm({ data, onChange }) {
 
   const handleInputChange = (field, value) => {
     // Update the data
-    onChange({ [field]: value });
+    onChange({ ...data, [field]: value });
     
     // Perform real-time validation
     let validation = { isValid: true, message: '' };
@@ -42,7 +42,7 @@ export default function EnhancedPersonalInfoForm({ data, onChange }) {
         processedValue = phoneResult.formatted;
         // Update with formatted value
         if (phoneResult.formatted !== value) {
-          setTimeout(() => onChange({ [field]: phoneResult.formatted }), 0);
+          setTimeout(() => onChange({ ...data, [field]: phoneResult.formatted }), 0);
         }
         break;
       case 'website':
@@ -50,7 +50,7 @@ export default function EnhancedPersonalInfoForm({ data, onChange }) {
         validation = { isValid: urlResult.isValid, message: urlResult.message };
         // Update with formatted URL if valid and different from input
         if (urlResult.isValid && urlResult.formatted && urlResult.formatted !== value) {
-          setTimeout(() => onChange({ [field]: urlResult.formatted }), 0);
+          setTimeout(() => onChange({ ...data, [field]: urlResult.formatted }), 0);
         }
         break;
       case 'linkedin':
@@ -58,7 +58,7 @@ export default function EnhancedPersonalInfoForm({ data, onChange }) {
         validation = { isValid: linkedinResult.isValid, message: linkedinResult.message };
         // Update with formatted LinkedIn URL if valid and different from input
         if (linkedinResult.isValid && linkedinResult.formatted && linkedinResult.formatted !== value) {
-          setTimeout(() => onChange({ [field]: linkedinResult.formatted }), 0);
+          setTimeout(() => onChange({ ...data, [field]: linkedinResult.formatted }), 0);
         }
         break;
       case 'github':
@@ -66,7 +66,7 @@ export default function EnhancedPersonalInfoForm({ data, onChange }) {
         validation = { isValid: githubResult.isValid, message: githubResult.message };
         // Update with formatted GitHub URL if valid and different from input
         if (githubResult.isValid && githubResult.formatted && githubResult.formatted !== value) {
-          setTimeout(() => onChange({ [field]: githubResult.formatted }), 0);
+          setTimeout(() => onChange({ ...data, [field]: githubResult.formatted }), 0);
         }
         break;
       default:
