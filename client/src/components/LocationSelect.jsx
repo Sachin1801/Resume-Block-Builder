@@ -1,10 +1,25 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { MapPin, ChevronDown, Check } from 'lucide-react';
+import React, { useState } from 'react'
+import { Check, ChevronsUpDown, MapPin } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 
-// Popular US cities
+// Popular US cities - same list as before
 const POPULAR_CITIES = [
   'New York, NY',
-  'Los Angeles, CA',
+  'Los Angeles, CA', 
   'Chicago, IL',
   'Houston, TX',
   'Phoenix, AZ',
@@ -53,136 +68,133 @@ const POPULAR_CITIES = [
   'Orlando, FL',
   'Pittsburgh, PA',
   'Remote'
-];
+]
 
-export default function LocationSelect({ value, onChange, placeholder = "Select or type your location" }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isCustom, setIsCustom] = useState(false);
-  const dropdownRef = useRef(null);
-  const inputRef = useRef(null);
+export default function NewLocationSelect({ value, onChange, placeholder = "Select or type your location" }) {
+  const [open, setOpen] = useState(false)
+  const [searchValue, setSearchValue] = useState('')
 
-  // Filter cities based on search term
-  const filteredCities = POPULAR_CITIES.filter(city =>
-    city.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Handle input changes
-  const handleInputChange = (e) => {
-    const newValue = e.target.value;
-    setSearchTerm(newValue);
-    
-    // If the value doesn't match any popular city, treat it as custom
-    const isPopularCity = POPULAR_CITIES.some(city => 
-      city.toLowerCase() === newValue.toLowerCase()
-    );
-    
-    setIsCustom(!isPopularCity && newValue.length > 0);
-    onChange(newValue);
-    
-    if (!isOpen) setIsOpen(true);
-  };
-
-  // Handle city selection
-  const handleCitySelect = (city) => {
-    onChange(city);
-    setSearchTerm('');
-    setIsCustom(false);
-    setIsOpen(false);
-  };
-
-  // Handle input focus
-  const handleFocus = () => {
-    setIsOpen(true);
-    setSearchTerm(value || '');
-  };
+  const isCustomLocation = value && !POPULAR_CITIES.includes(value)
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      <div className="relative">
-        <input
-          ref={inputRef}
-          type="text"
-          value={isOpen ? searchTerm : (value || '')}
-          onChange={handleInputChange}
-          onFocus={handleFocus}
-          className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-          placeholder={placeholder}
-        />
-        <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between font-normal"
         >
-          <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-        </button>
-      </div>
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-muted-foreground" />
+            <span className={cn("truncate", !value && "text-muted-foreground")}>
+              {value || placeholder}
+            </span>
+          </div>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
 
-      {/* Dropdown */}
-      {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-          {filteredCities.length > 0 ? (
-            <>
-              {filteredCities.map((city) => (
-                <button
-                  key={city}
-                  type="button"
-                  onClick={() => handleCitySelect(city)}
-                  className={`w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-between ${
-                    value === city ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-gray-400" />
-                    <span>{city}</span>
-                  </div>
-                  {value === city && <Check className="w-4 h-4" />}
-                </button>
-              ))}
-              
-              {searchTerm && !filteredCities.some(city => city.toLowerCase() === searchTerm.toLowerCase()) && (
-                <button
-                  type="button"
-                  onClick={() => handleCitySelect(searchTerm)}
-                  className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-900 dark:text-white border-t border-gray-200 dark:border-gray-600"
-                >
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-blue-500" />
-                    <span>Use "{searchTerm}"</span>
-                  </div>
-                </button>
-              )}
-            </>
-          ) : searchTerm ? (
-            <button
-              type="button"
-              onClick={() => handleCitySelect(searchTerm)}
-              className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-900 dark:text-white"
-            >
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-blue-500" />
-                <span>Use "{searchTerm}"</span>
+      <PopoverContent className="w-full p-0" align="start">
+        <Command>
+          <CommandInput 
+            placeholder="Search locations..." 
+            value={searchValue}
+            onValueChange={setSearchValue}
+          />
+          <CommandList>
+            <CommandEmpty>
+              <div className="py-2 px-4">
+                <p className="text-sm text-muted-foreground mb-2">No location found.</p>
+                {searchValue && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      onChange(searchValue)
+                      setOpen(false)
+                      setSearchValue('')
+                    }}
+                  >
+                    <MapPin className="w-4 h-4 mr-2" />
+                    Use "{searchValue}"
+                  </Button>
+                )}
               </div>
-            </button>
-          ) : (
-            <div className="px-3 py-2 text-gray-500 dark:text-gray-400">
-              No cities found
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
+            </CommandEmpty>
+
+            <CommandGroup>
+              {/* Show current custom location at top if it exists */}
+              {isCustomLocation && (
+                <CommandItem
+                  value={value}
+                  onSelect={() => {
+                    onChange(value)
+                    setOpen(false)
+                    setSearchValue('')
+                  }}
+                  className="bg-muted/50"
+                >
+                  <MapPin className="mr-2 h-4 w-4 text-blue-500" />
+                  <span className="font-medium">{value}</span>
+                  <span className="ml-auto text-xs text-muted-foreground">(Custom)</span>
+                  <Check
+                    className={cn(
+                      "ml-2 h-4 w-4",
+                      value === value ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                </CommandItem>
+              )}
+
+              {/* Popular cities */}
+              {POPULAR_CITIES.map((city) => (
+                <CommandItem
+                  key={city}
+                  value={city}
+                  onSelect={() => {
+                    onChange(city === value ? '' : city)
+                    setOpen(false)
+                    setSearchValue('')
+                  }}
+                >
+                  <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <span>{city}</span>
+                  {city === 'Remote' && (
+                    <span className="ml-auto text-xs text-blue-600 font-medium">🌐</span>
+                  )}
+                  <Check
+                    className={cn(
+                      "ml-auto h-4 w-4",
+                      value === city ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                </CommandItem>
+              ))}
+
+              {/* Add custom location option */}
+              {searchValue && !POPULAR_CITIES.some(city => 
+                city.toLowerCase().includes(searchValue.toLowerCase())
+              ) && searchValue !== value && (
+                <CommandItem
+                  value={searchValue}
+                  onSelect={() => {
+                    onChange(searchValue)
+                    setOpen(false)
+                    setSearchValue('')
+                  }}
+                  className="border-t border-border"
+                >
+                  <MapPin className="mr-2 h-4 w-4 text-blue-500" />
+                  <span>Use "{searchValue}"</span>
+                  <span className="ml-auto text-xs text-muted-foreground">(Custom)</span>
+                </CommandItem>
+              )}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
 }

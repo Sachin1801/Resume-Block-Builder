@@ -4,23 +4,24 @@ import { CSS } from '@dnd-kit/utilities';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronRight, Move, Trash2, Eye, EyeOff } from 'lucide-react';
 
-import PersonalInfoForm from './forms/PersonalInfoForm';
-import EnhancedPersonalInfoForm from './EnhancedPersonalInfoForm';
-import EducationForm from './forms/EducationForm';
-import ExperienceForm from './forms/ExperienceForm';
-import ProjectForm from './forms/ProjectForm';
-import SkillsForm from './forms/SkillsForm';
-import AchievementsForm from './forms/AchievementsForm';
-import SummaryForm from './forms/SummaryForm';
+import { Button } from '@/components/ui/button';
+
+import NewEnhancedPersonalInfoForm from './forms/PersonalInfoForm';
+import NewEducationForm from './forms/EducationForm';
+import NewExperienceForm from './forms/ExperienceForm';
+import NewProjectForm from './forms/ProjectForm';
+import NewSkillsForm from './forms/SkillsForm';
+import NewAchievementsForm from './forms/AchievementsForm';
+import NewSummaryForm from './forms/SummaryForm';
 
 const FORM_COMPONENTS = {
-  personalInfo: EnhancedPersonalInfoForm,
-  education: EducationForm,
-  experience: ExperienceForm,
-  projects: ProjectForm,
-  skills: SkillsForm,
-  achievements: AchievementsForm,
-  summary: SummaryForm
+  personalInfo: NewEnhancedPersonalInfoForm,
+  education: NewEducationForm,
+  experience: NewExperienceForm,
+  projects: NewProjectForm,
+  skills: NewSkillsForm,
+  achievements: NewAchievementsForm,
+  summary: NewSummaryForm
 };
 
 export default function SortableSection({ 
@@ -73,13 +74,13 @@ export default function SortableSection({
         isDragging ? 'opacity-50 scale-105 shadow-lg' : ''
       } ${
         section.enabled 
-          ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700' 
-          : 'bg-gray-50 dark:bg-gray-700/50 border-gray-300 dark:border-gray-600 opacity-75'
+          ? 'bg-background border-border' 
+          : 'bg-muted/50 border-muted opacity-75'
       }`}
     >
       {/* Section Header */}
       <div 
-        className="p-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 cursor-pointer"
+        className="p-4 bg-muted/50 border-b cursor-pointer"
         onClick={onToggle}
       >
         <div className="flex items-center justify-between">
@@ -87,21 +88,21 @@ export default function SortableSection({
             <div
               {...attributes}
               {...listeners}
-              className="p-1.5 bg-white dark:bg-gray-600 rounded-lg shadow-sm cursor-grab hover:bg-gray-100 dark:hover:bg-gray-500 transition-colors"
+              className="p-1.5 bg-background rounded-lg shadow-sm cursor-grab hover:bg-muted transition-colors"
               onClick={(e) => e.stopPropagation()}
             >
-              <Move className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+              <Move className="w-4 h-4 text-muted-foreground" />
             </div>
             
-            <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg text-white">
+            <div className="p-2 bg-primary rounded-lg text-primary-foreground">
               <Icon className="w-4 h-4" />
             </div>
             
             <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">
+              <h3 className="font-semibold">
                 {sectionType.title}
               </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 {getItemCount()} {getItemCount() === 1 ? 'item' : 'items'}
               </p>
             </div>
@@ -109,34 +110,37 @@ export default function SortableSection({
 
           <div className="flex items-center gap-2">
             {/* Toggle visibility button */}
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleEnabled();
               }}
-              className={`p-1.5 rounded-lg transition-colors ${
-                section.enabled 
-                  ? 'text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20' 
-                  : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
-              }`}
+              className={section.enabled 
+                ? 'text-green-600 hover:text-green-700 hover:bg-green-50' 
+                : 'text-muted-foreground hover:text-foreground'
+              }
               title={section.enabled ? 'Hide from resume' : 'Show in resume'}
             >
               {section.enabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-            </button>
+            </Button>
 
             {!sectionType.required && (
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   onRemove();
                 }}
-                className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
               >
                 <Trash2 className="w-4 h-4" />
-              </button>
+              </Button>
             )}
             
-            <div className="text-gray-400 dark:text-gray-500">
+            <div className="text-muted-foreground">
               {isActive ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
             </div>
           </div>
@@ -160,7 +164,7 @@ export default function SortableSection({
                   onChange={onUpdate}
                 />
               ) : (
-                <div className="text-gray-500 dark:text-gray-400 text-center py-8">
+                <div className="text-muted-foreground text-center py-8">
                   Form component not implemented yet
                 </div>
               )}

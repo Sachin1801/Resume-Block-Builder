@@ -1,13 +1,81 @@
-import React from 'react';
-import { Plus, Trash2, GraduationCap, Calendar, MapPin, BookOpen } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React from 'react'
+import { useFieldArray, useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
+import { Plus, Trash2, GraduationCap, Calendar, MapPin, BookOpen } from 'lucide-react'
 
-export default function EducationForm({ data, onChange }) {
-  const entries = data.entries || [];
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import NewLocationSelect from '../LocationSelect'
 
-  const addEntry = () => {
-    const newEntry = {
-      id: Date.now(),
+// Education entry validation schema
+const educationEntrySchema = z.object({
+  institution: z.string()
+    .min(1, 'Institution is required')
+    .max(100, 'Institution name too long'),
+  
+  degree: z.string()
+    .min(1, 'Degree is required')
+    .max(100, 'Degree name too long'),
+  
+  location: z.string().optional(),
+  
+  startDate: z.string()
+    .optional()
+    .refine((val) => !val || /^[A-Za-z]{3,4}\s\d{4}$/.test(val), {
+      message: 'Use format like "Sept 2024" or "Jan 2020"'
+    }),
+  
+  endDate: z.string()
+    .optional()
+    .refine((val) => !val || /^[A-Za-z]{3,4}\s\d{4}$|^Present$|^Current$/.test(val), {
+      message: 'Use format like "May 2026", "Present", or "Current"'
+    }),
+  
+  gpa: z.string()
+    .optional()
+    .refine((val) => !val || /^\d(\.\d{1,2})?\/\d$/.test(val), {
+      message: 'Use format like "3.8/4" or "3.67/4"'
+    }),
+  
+  coursework: z.string().optional()
+})
+
+// Main form schema
+const educationFormSchema = z.object({
+  entries: z.array(educationEntrySchema)
+})
+
+export default function NewEducationForm({ data, onChange }) {
+  const form = useForm({
+    resolver: zodResolver(educationFormSchema),
+    defaultValues: {
+      entries: data?.entries || []
+    }
+  })
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'entries'
+  })
+
+  // Watch all form values for real-time updates
+  const watchedValues = form.watch()
+
+  // Update parent component when form changes
+  React.useEffect(() => {
+    if (onChange) {
+      onChange(watchedValues)
+    }
+  }, [watchedValues, onChange])
+
+  const addEducationEntry = () => {
+    append({
       institution: '',
       degree: '',
       location: '',
@@ -15,197 +83,267 @@ export default function EducationForm({ data, onChange }) {
       endDate: '',
       gpa: '',
       coursework: ''
-    };
-    onChange({ entries: [...entries, newEntry] });
-  };
+    })
+  }
 
-  const updateEntry = (id, field, value) => {
-    const updatedEntries = entries.map(entry =>
-      entry.id === id ? { ...entry, [field]: value } : entry
-    );
-    onChange({ entries: updatedEntries });
-  };
-
-  const removeEntry = (id) => {
-    const updatedEntries = entries.filter(entry => entry.id !== id);
-    onChange({ entries: updatedEntries });
-  };
+  const removeEducationEntry = (index) => {
+    remove(index)
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Education Entries</h3>
-        <button
-          onClick={addEntry}
-          className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Add Education
-        </button>
-      </div>
-
-      <AnimatePresence>
-        {entries.map((entry, index) => (
-          <motion.div
-            key={entry.id}
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
-                <GraduationCap className="w-4 h-4" />
-                Education {index + 1}
-              </h4>
-              <button
-                onClick={() => removeEntry(entry.id)}
-                className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+    <div className="space-y-6">
+      <Form {...form}>
+        <form className="space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <GraduationCap className="w-5 h-5 text-primary" />
+              <h3 className="text-lg font-semibold">Education</h3>
+            </div>
+            <div className="flex items-center gap-3">
+              <Badge variant="secondary" className="text-xs">
+                {fields.length} {fields.length === 1 ? 'entry' : 'entries'}
+              </Badge>
+              <Button 
+                type="button"
+                onClick={addEducationEntry}
+                size="sm"
+                className="gap-2"
               >
-                <Trash2 className="w-4 h-4" />
-              </button>
+                <Plus className="w-4 h-4" />
+                Add Education
+              </Button>
             </div>
+          </div>
 
-            <div className="space-y-3">
-              {/* Institution and Location */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Institution *
-                  </label>
-                  <input
-                    type="text"
-                    value={entry.institution}
-                    onChange={(e) => updateEntry(entry.id, 'institution', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-600 dark:text-white"
-                    placeholder="New York University"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Location
-                  </label>
-                  <input
-                    type="text"
-                    value={entry.location}
-                    onChange={(e) => updateEntry(entry.id, 'location', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-600 dark:text-white"
-                    placeholder="New York, USA"
-                  />
-                </div>
-              </div>
-
-              {/* Degree */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Degree *
-                </label>
-                <input
-                  type="text"
-                  value={entry.degree}
-                  onChange={(e) => updateEntry(entry.id, 'degree', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-600 dark:text-white"
-                  placeholder="MS in Computer Science"
-                />
-              </div>
-
-              {/* Dates and GPA */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div>
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    <Calendar className="w-4 h-4" />
-                    Start Date
-                  </label>
-                  <input
-                    type="text"
-                    value={entry.startDate}
-                    onChange={(e) => updateEntry(entry.id, 'startDate', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-600 dark:text-white"
-                    placeholder="Sept 2024"
-                  />
-                </div>
-                <div>
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    <Calendar className="w-4 h-4" />
-                    End Date
-                  </label>
-                  <input
-                    type="text"
-                    value={entry.endDate}
-                    onChange={(e) => updateEntry(entry.id, 'endDate', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-600 dark:text-white"
-                    placeholder="May 2026"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    GPA
-                  </label>
-                  <input
-                    type="text"
-                    value={entry.gpa}
-                    onChange={(e) => updateEntry(entry.id, 'gpa', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-600 dark:text-white"
-                    placeholder="3.6/4"
-                  />
-                </div>
-              </div>
-
-              {/* Coursework */}
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  <BookOpen className="w-4 h-4" />
-                  Relevant Coursework
-                </label>
-                <textarea
-                  value={entry.coursework}
-                  onChange={(e) => updateEntry(entry.id, 'coursework', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-600 dark:text-white"
-                  placeholder="Operating Systems, Design and Analysis of Algorithms, Software Engineering, Artificial Intelligence"
-                  rows="2"
-                />
-              </div>
-
-              {/* Preview */}
-              {(entry.institution || entry.degree) && (
-                <div className="mt-3 p-3 bg-gray-100 dark:bg-gray-600 rounded-lg">
-                  <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Preview</h5>
-                  <div className="text-sm">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-semibold text-gray-900 dark:text-white">
-                          {entry.institution || 'Institution Name'}
-                        </div>
-                        <div className="text-gray-600 dark:text-gray-300">
-                          {entry.degree || 'Degree'}{entry.gpa && `, GPA: ${entry.gpa}`}
-                        </div>
-                      </div>
-                      <div className="text-right text-gray-600 dark:text-gray-300">
-                        <div className="font-semibold">
-                          {entry.startDate && entry.endDate ? `${entry.startDate} - ${entry.endDate}` : 'Dates'}
-                        </div>
-                        <div>{entry.location || 'Location'}</div>
-                      </div>
-                    </div>
-                    {entry.coursework && (
-                      <div className="mt-2 text-gray-600 dark:text-gray-300">
-                        <span className="font-medium">Coursework:</span> {entry.coursework}
-                      </div>
-                    )}
+          {/* Education Entries */}
+          <div className="space-y-4">
+            {fields.map((field, index) => (
+              <Card key={field.id} className="relative">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <GraduationCap className="w-4 h-4" />
+                      Education {index + 1}
+                    </CardTitle>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeEducationEntry(index)}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        ))}
-      </AnimatePresence>
+                </CardHeader>
+                
+                <CardContent className="space-y-4">
+                  {/* Institution and Location */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name={`entries.${index}.institution`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Institution *</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="New York University" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-      {entries.length === 0 && (
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          <GraduationCap className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>No education entries yet. Click "Add Education" to get started.</p>
-        </div>
-      )}
+                    <FormField
+                      control={form.control}
+                      name={`entries.${index}.location`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4" />
+                            Location
+                          </FormLabel>
+                          <FormControl>
+                            <NewLocationSelect
+                              value={field.value}
+                              onChange={field.onChange}
+                              placeholder="Select location"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Degree */}
+                  <FormField
+                    control={form.control}
+                    name={`entries.${index}.degree`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Degree *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="MS in Computer Science" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Dates and GPA */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name={`entries.${index}.startDate`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4" />
+                            Start Date
+                          </FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Sept 2024" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name={`entries.${index}.endDate`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4" />
+                            End Date
+                          </FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="May 2026" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name={`entries.${index}.gpa`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>GPA</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="3.8/4" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Coursework */}
+                  <FormField
+                    control={form.control}
+                    name={`entries.${index}.coursework`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <BookOpen className="w-4 h-4" />
+                          Relevant Coursework
+                        </FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Operating Systems, Design and Analysis of Algorithms, Software Engineering, Artificial Intelligence"
+                            className="min-h-[60px]"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Preview */}
+                  {(watchedValues.entries?.[index]?.institution || watchedValues.entries?.[index]?.degree) && (
+                    <>
+                      <Separator />
+                      <div className="p-4 bg-muted/50 rounded-lg">
+                        <h5 className="text-sm font-medium mb-3 flex items-center gap-2">
+                          <GraduationCap className="w-4 h-4" />
+                          Preview
+                        </h5>
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-start">
+                            <div className="space-y-1">
+                              <div className="font-semibold">
+                                {watchedValues.entries?.[index]?.institution || 'Institution Name'}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {watchedValues.entries?.[index]?.degree || 'Degree'}
+                                {watchedValues.entries?.[index]?.gpa && `, GPA: ${watchedValues.entries[index].gpa}`}
+                              </div>
+                            </div>
+                            <div className="text-right text-sm text-muted-foreground">
+                              <div className="font-medium">
+                                {watchedValues.entries?.[index]?.startDate && watchedValues.entries?.[index]?.endDate 
+                                  ? `${watchedValues.entries[index].startDate} - ${watchedValues.entries[index].endDate}` 
+                                  : 'Dates TBD'}
+                              </div>
+                              <div>{watchedValues.entries?.[index]?.location || 'Location TBD'}</div>
+                            </div>
+                          </div>
+                          {watchedValues.entries?.[index]?.coursework && (
+                            <div className="pt-2 border-t border-border">
+                              <span className="text-sm font-medium">Coursework:</span>
+                              <span className="text-sm text-muted-foreground ml-2">
+                                {watchedValues.entries[index].coursework}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Empty State */}
+          {fields.length === 0 && (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <GraduationCap className="w-12 h-12 text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Education Entries</h3>
+                <p className="text-muted-foreground mb-6 text-center max-w-sm">
+                  Add your educational background to showcase your academic achievements and qualifications.
+                </p>
+                <Button onClick={addEducationEntry} className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Add Your First Education
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </form>
+      </Form>
     </div>
-  );
+  )
 }
