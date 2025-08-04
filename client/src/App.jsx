@@ -1,10 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Download, Eye, FileText, Play
+  Download, Eye, FileText, Play, LogOut, User
 } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+
 import ResumeBuilder from './components/ResumeBuilder';
+import ResizeHandle from './components/ResizeHandle';
+import AuthModal from './components/AuthModal';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { resumeService } from './services/resumeService';
 
 // Simplified LaTeX template for testing
 const SIMPLE_LATEX_TEMPLATE = `\\documentclass[letterpaper,11pt]{article}
@@ -115,42 +125,55 @@ const latexTemplate = (content) => ENHANCED_LATEX_TEMPLATE.replace('{{CONTENT}}'
 
 // Manual compilation approach - no debouncing needed
 
-// Simple PDF Viewer
+// Enhanced PDF Viewer with shadcn/ui components
 function PDFViewer({ pdfUrl, isCompiling, error }) {
   if (error) {
     return (
-      <div className="text-center py-8 text-red-500 dark:text-red-400">
-        <div className="mb-3">❌</div>
-        <p className="text-sm">Compilation Error</p>
-        <p className="text-xs mt-2 text-gray-500 dark:text-gray-400">{error}</p>
+      <div className="w-full h-full flex items-center justify-center p-8">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertDescription className="text-center">
+            <div className="mb-3 text-2xl">❌</div>
+            <p className="text-sm font-medium">Compilation Error</p>
+            <p className="text-xs mt-2 text-muted-foreground">{error}</p>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
 
   if (isCompiling) {
     return (
-      <div className="text-center py-8 text-blue-500 dark:text-blue-400">
-        <div className="animate-spin mb-3">⚙️</div>
-        <p className="text-sm">Compiling LaTeX...</p>
+      <div className="w-full h-full flex items-center justify-center p-8">
+        <Card className="max-w-md text-center">
+          <CardContent className="pt-6">
+            <div className="animate-spin mb-3 text-2xl">⚙️</div>
+            <p className="text-sm font-medium text-primary">Compiling LaTeX...</p>
+            <p className="text-xs mt-2 text-muted-foreground">Please wait while we generate your PDF</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   if (!pdfUrl) {
     return (
-      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-        <Eye className="w-12 h-12 mx-auto mb-3 opacity-50" />
-        <p>Click "Compile PDF" to generate your resume preview</p>
-        <p className="text-sm mt-2">Fill out the form sections first, then compile</p>
+      <div className="w-full h-full flex items-center justify-center p-8">
+        <Card className="max-w-md text-center">
+          <CardContent className="pt-6">
+            <Eye className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p className="text-sm font-medium">Click "Compile PDF" to generate your resume preview</p>
+            <p className="text-xs mt-2 text-muted-foreground">Fill out the form sections first, then compile</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+    <div className="w-full h-full flex items-center justify-center bg-muted/30">
       <iframe
         src={pdfUrl}
-        className="w-full h-full border-0"
+        className="w-full h-full border-0 rounded-lg shadow-sm"
         title="PDF Preview"
       />
     </div>
@@ -158,12 +181,53 @@ function PDFViewer({ pdfUrl, isCompiling, error }) {
 }
 
 // Main App Component
-export default function App() {
+function AppContent() {
+  const { user, loading, signOut } = useAuth();
   const [latexCode, setLatexCode] = useState('');
   const [pdfUrl, setPdfUrl] = useState(null);
   const [isCompiling, setIsCompiling] = useState(false);
   const [error, setError] = useState(null);
   const [currentView, setCurrentView] = useState('builder'); // 'builder' or 'code'
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [activeResumeId, setActiveResumeId] = useState(null);
+  const [sections, setSections] = useState(null); // Initialize as null to detect first load
+  
+  // Load user's active resume when authenticated
+  useEffect(() => {
+    if (user && !loading && !activeResumeId) {
+      loadUserResume();
+    }
+  }, [user, loading]);
+  
+  const loadUserResume = async () => {
+    try {
+      console.log('Loading user resumes...');
+      const { resumeService } = await import('./services/resumeService');
+      const resumes = await resumeService.getUserResumes();
+      console.log('User resumes loaded:', resumes);
+      
+      if (resumes && resumes.length > 0) {
+        // Find active resume or use the first one
+        const activeResume = resumes.find(r => r.is_active) || resumes[0];
+        console.log('Setting active resume:', activeResume.id);
+        setActiveResumeId(activeResume.id);
+      } else {
+        console.log('No resumes found for user');
+      }
+    } catch (error) {
+      console.error('Error loading user resume:', error);
+    }
+  };
+  
+  // Panel sizing state
+  const [leftPanelWidth, setLeftPanelWidth] = useState(() => {
+    const saved = localStorage.getItem('resumeBuilder-leftPanelWidth');
+    return saved ? parseInt(saved) : window.innerWidth * 0.65; // Default to 65% of screen width
+  });
+  
+  // Constants for panel constraints
+  const MIN_PANEL_WIDTH = 300;
+  const MIN_PDF_WIDTH = 250;
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -175,6 +239,42 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('resumeLatexCode', latexCode);
   }, [latexCode]);
+
+  // Save panel width to localStorage
+  useEffect(() => {
+    localStorage.setItem('resumeBuilder-leftPanelWidth', leftPanelWidth.toString());
+  }, [leftPanelWidth]);
+
+  // Handle window resize
+  useEffect(() => {
+    const handleWindowResize = () => {
+      const containerWidth = window.innerWidth;
+      const maxLeftWidth = containerWidth - MIN_PDF_WIDTH - 20;
+      
+      if (leftPanelWidth > maxLeftWidth) {
+        setLeftPanelWidth(Math.max(MIN_PANEL_WIDTH, maxLeftWidth));
+      }
+    };
+
+    window.addEventListener('resize', handleWindowResize);
+    return () => window.removeEventListener('resize', handleWindowResize);
+  }, [leftPanelWidth]);
+
+  // Panel resizing logic
+  const handleResize = useCallback((newWidth) => {
+    const containerWidth = window.innerWidth;
+    const maxLeftWidth = containerWidth - MIN_PDF_WIDTH - 20; // 20px for resize handle and margins
+    const constrainedWidth = Math.max(MIN_PANEL_WIDTH, Math.min(newWidth, maxLeftWidth));
+    setLeftPanelWidth(constrainedWidth);
+  }, []);
+
+  // Get current width for the resize handle
+  const getCurrentWidth = useCallback(() => {
+    return leftPanelWidth;
+  }, [leftPanelWidth]);
+
+  // Calculate PDF panel width
+  const pdfPanelWidth = window.innerWidth - leftPanelWidth - 4; // 4px for resize handle
 
   // Compile LaTeX
   const compileLatex = useCallback(async (code) => {
@@ -253,67 +353,112 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg text-white">
+              <div className="p-2 bg-primary rounded-lg text-primary-foreground">
                 <FileText className="w-6 h-6" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-2xl font-bold">
                 Advanced Resume Builder
               </h1>
             </div>
             
             <div className="flex items-center gap-3">
+              {/* User Menu */}
+              {user ? (
+                <div className="flex items-center gap-3">
+                  <Badge variant="secondary" className="flex items-center gap-2 px-3 py-1.5">
+                    <User className="w-4 h-4" />
+                    <span className="text-sm">{user.email}</span>
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={signOut}
+                    className="gap-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setShowAuthModal(true)}
+                  className="gap-2"
+                >
+                  <User className="w-4 h-4" />
+                  Sign In
+                </Button>
+              )}
+
+              <Separator orientation="vertical" className="h-6" />
+
               {/* View Toggle */}
-              <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                <button
+              <div className="flex items-center bg-muted rounded-lg p-1">
+                <Button
+                  variant={currentView === 'builder' ? 'default' : 'ghost'}
+                  size="sm"
                   onClick={() => setCurrentView('builder')}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    currentView === 'builder'
-                      ? 'bg-blue-500 text-white shadow-sm'
-                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
-                  }`}
+                  className="text-xs"
                 >
                   Builder
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant={currentView === 'code' ? 'default' : 'ghost'}
+                  size="sm"
                   onClick={() => setCurrentView('code')}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    currentView === 'code'
-                      ? 'bg-blue-500 text-white shadow-sm'
-                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
-                  }`}
+                  className="text-xs"
                 >
                   Code
-                </button>
+                </Button>
               </div>
 
-              <button
+              <Separator orientation="vertical" className="h-6" />
+
+              <Button
                 onClick={handleManualCompile}
                 disabled={isCompiling || !latexCode?.trim()}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                variant="default"
+                size="sm"
+                className="gap-2"
               >
                 <Play className="w-4 h-4" />
                 {isCompiling ? 'Compiling...' : 'Compile PDF'}
-              </button>
+              </Button>
 
-              <button
+              <Button
                 onClick={downloadPDF}
                 disabled={!pdfUrl}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                variant="secondary"
+                size="sm"
+                className="gap-2"
               >
                 <Download className="w-4 h-4" />
                 Download PDF
-              </button>
+              </Button>
             </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <div className="flex h-[calc(100vh-73px)]">
+      <div className="flex flex-col lg:flex-row h-[calc(100vh-73px)]">
         {/* Left Panel - Resume Builder or Code Editor */}
-        <div className="flex-1 flex flex-col">
+        <div 
+          className="flex flex-col lg:static"
+          style={{ 
+            width: window.innerWidth >= 1024 ? `${leftPanelWidth}px` : '100%',
+            height: window.innerWidth >= 1024 ? '100%' : '50%'
+          }}
+        >
           {currentView === 'builder' ? (
-            <ResumeBuilder onLatexChange={handleLatexChange} />
+            <ResumeBuilder 
+              onLatexChange={handleLatexChange}
+              user={user}
+              activeResumeId={activeResumeId}
+              onSectionsChange={setSections}
+              initialSections={sections}
+            />
           ) : (
             <div className="flex-1 relative">
               <textarea
@@ -332,28 +477,46 @@ export default function App() {
               />
               
               {error && (
-                <div className="absolute bottom-4 left-4 right-4 p-4 bg-red-100 dark:bg-red-900 border border-red-300 dark:border-red-700 rounded-lg">
-                  <p className="text-red-700 dark:text-red-200 text-sm">{error}</p>
+                <div className="absolute bottom-4 left-4 right-4">
+                  <Alert variant="destructive">
+                    <AlertDescription className="text-sm">{error}</AlertDescription>
+                  </Alert>
                 </div>
               )}
             </div>
           )}
         </div>
 
+        {/* Resize Handle - Only show on desktop */}
+        {window.innerWidth >= 1024 && (
+          <ResizeHandle 
+            onResize={handleResize}
+            getCurrentWidth={getCurrentWidth}
+          />
+        )}
+
         {/* Right Panel - PDF Preview */}
-        <div className="w-96 bg-gray-100 dark:bg-gray-900 shadow-xl overflow-hidden border-l border-gray-200 dark:border-gray-700">
+        <div 
+          className="bg-gray-100 dark:bg-gray-900 shadow-xl overflow-hidden border-l lg:border-l border-t lg:border-t-0 border-gray-200 dark:border-gray-700"
+          style={{ 
+            width: window.innerWidth >= 1024 ? `${pdfPanelWidth}px` : '100%',
+            height: window.innerWidth >= 1024 ? '100%' : '50%'
+          }}
+        >
           <div className="h-full flex flex-col">
-            <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <Eye className="text-green-500" />
-                Live Preview
+            <div className="p-4 bg-background border-b">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <Eye className="text-green-500" />
+                  Live Preview
+                </h2>
                 {isCompiling && (
-                  <div className="ml-auto flex items-center gap-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                    <span className="text-sm text-gray-500">Compiling...</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                    <span className="text-sm text-muted-foreground">Compiling...</span>
                   </div>
                 )}
-              </h2>
+              </div>
             </div>
             
             <div className="flex-1 overflow-auto">
@@ -362,6 +525,18 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* Auth Modal */}
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </div>
+  );
+}
+
+// Wrap App with AuthProvider
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -6,16 +6,15 @@ import {
   Plus, User, BookOpen, Briefcase, GitBranch, Award, 
   Mail, Phone, MapPin, Globe, Github, Linkedin, 
   GraduationCap, Calendar, Building, Percent,
-  TrendingUp, Target, Zap, Edit3, Trash2, Move
+  TrendingUp, Target, Zap, Edit3, Trash2, Move, Save
 } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
 import SortableSection from './SortableSection';
-import PersonalInfoForm from './forms/PersonalInfoForm';
-import EducationForm from './forms/EducationForm';
-import ExperienceForm from './forms/ExperienceForm';
-import ProjectForm from './forms/ProjectForm';
-import SkillsForm from './forms/SkillsForm';
-import AchievementsForm from './forms/AchievementsForm';
 
 // Resume section types and their configurations
 const SECTION_TYPES = {
@@ -24,7 +23,6 @@ const SECTION_TYPES = {
     title: 'Personal Information',
     icon: User,
     required: true,
-    component: PersonalInfoForm,
     latexTemplate: (data) => {
       if (!data.fullName && !data.email && !data.phone) return '';
       
@@ -47,7 +45,6 @@ const SECTION_TYPES = {
     title: 'Professional Summary',
     icon: Target,
     required: false,
-    component: null, // Simple text area
     latexTemplate: (data) => {
       if (!data.content || !data.content.trim()) return '';
       return `
@@ -62,14 +59,17 @@ ${data.content}
     title: 'Education',
     icon: BookOpen,
     required: false,
-    component: EducationForm,
     latexTemplate: (data) => {
       if (!data.entries || data.entries.length === 0) return '';
+      // Filter only enabled entries
+      const enabledEntries = data.entries.filter(entry => entry.enabled !== false);
+      if (enabledEntries.length === 0) return '';
+      
       return `
 \\section{\\textbf{Education}}
 \\vspace{-5pt}
 \\resumeSubHeadingListStart
-${data.entries.map(entry => `
+${enabledEntries.map(entry => `
   \\resumeSubheading
     {${entry.institution || 'Institution'}}{${entry.startDate || 'Start'} - ${entry.endDate || 'End'}}
     {${entry.degree || 'Degree'}${entry.gpa ? `, \\textbf{GPA: ${entry.gpa}}` : ''}}{${entry.location || 'Location'}}
@@ -87,14 +87,17 @@ ${data.entries.map(entry => `
     title: 'Experience',
     icon: Briefcase,
     required: false,
-    component: ExperienceForm,
     latexTemplate: (data) => {
       if (!data.entries || data.entries.length === 0) return '';
+      // Filter only enabled entries
+      const enabledEntries = data.entries.filter(entry => entry.enabled !== false);
+      if (enabledEntries.length === 0) return '';
+      
       return `
 \\section{Experience}
 \\vspace{-2pt}
 \\resumeSubHeadingListStart
-${data.entries.map(entry => `
+${enabledEntries.map(entry => `
   \\resumeSubheading
     {${entry.company || 'Company'}}{${entry.startDate || 'Start'} – ${entry.endDate || 'End'}}
     {${entry.position || 'Position'}}{}
@@ -112,14 +115,17 @@ ${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeIte
     title: 'Projects',
     icon: GitBranch,
     required: false,
-    component: ProjectForm,
     latexTemplate: (data) => {
       if (!data.entries || data.entries.length === 0) return '';
+      // Filter only enabled entries
+      const enabledEntries = data.entries.filter(entry => entry.enabled !== false);
+      if (enabledEntries.length === 0) return '';
+      
       return `
 \\section{Projects \\hfill \\textit{\\small (Click on Title to open project)}}
 \\vspace{-10pt}
 \\resumeSubHeadingListStart
-${data.entries.map(entry => `
+${enabledEntries.map(entry => `
   \\resumeProjectHeading
     {${entry.url ? `\\href{${entry.url}}{\\textbf{${entry.name || 'Project'}}}` : `\\textbf{${entry.name || 'Project'}}`} $|$ \\emph{${entry.technologies || 'Technologies'}}}{${entry.date || 'Date'}}
     ${entry.achievements && entry.achievements.length > 0 && entry.achievements.some(a => a.trim()) ? `\\resumeItemListStart
@@ -136,7 +142,6 @@ ${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeIte
     title: 'Technical Skills',
     icon: Award,
     required: false,
-    component: SkillsForm,
     latexTemplate: (data) => {
       if (!data.categories || Object.keys(data.categories).length === 0) return '';
       const hasContent = Object.values(data.categories).some(cat => 
@@ -168,10 +173,12 @@ ${Object.entries(data.categories).filter(([category, skills]) =>
     title: 'Achievements',
     icon: TrendingUp,
     required: false,
-    component: AchievementsForm,
     latexTemplate: (data) => {
       if (!data.entries || data.entries.length === 0) return '';
-      const validEntries = data.entries.filter(entry => entry.title && entry.title.trim());
+      // Filter enabled entries with valid titles
+      const validEntries = data.entries.filter(entry => 
+        entry.title && entry.title.trim() && entry.enabled !== false
+      );
       if (validEntries.length === 0) return '';
       
       return `
@@ -202,10 +209,75 @@ const DEFAULT_SECTIONS = [
   { id: 'summary', type: 'summary', data: { content: '' }, enabled: false }
 ];
 
-export default function ResumeBuilder({ onLatexChange }) {
-  const [sections, setSections] = useState(DEFAULT_SECTIONS);
+export default function ResumeBuilder({ onLatexChange, user, activeResumeId, onSectionsChange, initialSections }) {
+  const [sections, setSections] = useState(initialSections || DEFAULT_SECTIONS);
   const [activeSection, setActiveSection] = useState(null);
   const [showAddSection, setShowAddSection] = useState(false);
+  const [currentResumeId, setCurrentResumeId] = useState(activeResumeId);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const updateTimeoutRef = useRef(null);
+
+  // Remove this useEffect entirely to prevent circular updates
+
+  // Create or load resume when user logs in
+  useEffect(() => {
+    if (user && activeResumeId && activeResumeId !== currentResumeId) {
+      setCurrentResumeId(activeResumeId);
+      loadResume(activeResumeId);
+    } else if (user && !activeResumeId && !currentResumeId) {
+      // Only create new resume if user has no resumes
+      createDefaultResume();
+    }
+  }, [user, activeResumeId]);
+
+  const createDefaultResume = async () => {
+    try {
+      console.log('Creating default resume...');
+      const { resumeService } = await import('../services/resumeService');
+      
+      // First check if user already has resumes
+      const existingResumes = await resumeService.getUserResumes();
+      if (existingResumes && existingResumes.length > 0) {
+        console.log('User already has resumes, not creating new one');
+        return;
+      }
+      
+      const resume = await resumeService.createResume('My Resume');
+      console.log('Created new resume:', resume.id);
+      setCurrentResumeId(resume.id);
+      // Save default sections
+      await resumeService.saveSections(resume.id, sections);
+    } catch (error) {
+      console.error('Error creating resume:', error);
+    }
+  };
+
+  const loadResume = async (resumeId) => {
+    try {
+      console.log('Loading resume with ID:', resumeId);
+      const { resumeService } = await import('../services/resumeService');
+      const resume = await resumeService.getResume(resumeId);
+      console.log('Resume loaded:', resume);
+      
+      if (resume.sections && resume.sections.length > 0) {
+        // Convert database sections to component format
+        const loadedSections = resume.sections.map(s => ({
+          id: s.id,
+          type: s.type,
+          data: s.data,
+          enabled: s.enabled,
+          isSaved: true
+        }));
+        console.log('Setting sections:', loadedSections);
+        setSections(loadedSections);
+      } else {
+        console.log('No sections found in resume');
+      }
+    } catch (error) {
+      console.error('Error loading resume:', error);
+    }
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -234,9 +306,33 @@ export default function ResumeBuilder({ onLatexChange }) {
     const latex = generateLatex();
     console.log('Generated LaTeX:', latex ? 'Content generated' : 'Empty content');
     onLatexChange(latex);
-  }, [sections, generateLatex]);
+    
+    // Debounce parent updates to prevent jitter
+    if (onSectionsChange && !isDragging) {
+      // Clear existing timeout
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+      
+      // Set new timeout
+      updateTimeoutRef.current = setTimeout(() => {
+        onSectionsChange(sections);
+      }, 100); // 100ms debounce
+    }
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+    };
+  }, [sections, generateLatex, onLatexChange, onSectionsChange, isDragging]);
 
   // Handle section reordering
+  const handleDragStart = () => {
+    setIsDragging(true);
+  };
+
   const handleDragEnd = (event) => {
     const { active, over } = event;
     
@@ -247,15 +343,53 @@ export default function ResumeBuilder({ onLatexChange }) {
         return arrayMove(sections, oldIndex, newIndex);
       });
     }
+    
+    setIsDragging(false);
   };
 
   // Update section data
   const updateSectionData = (sectionId, newData) => {
     setSections(prev => prev.map(section => 
       section.id === sectionId 
-        ? { ...section, data: { ...section.data, ...newData } }
+        ? { ...section, data: { ...section.data, ...newData }, isSaved: false }
         : section
     ));
+  };
+
+  // Save section to database
+  const saveSection = async (sectionId, data) => {
+    if (!user || !currentResumeId) {
+      console.log('Cannot save: user or resume ID missing', { user: !!user, currentResumeId });
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      console.log('Saving section:', sectionId, 'for resume:', currentResumeId);
+      const { resumeService } = await import('../services/resumeService');
+      
+      // Find the section
+      const sectionToSave = sections.find(s => s.id === sectionId);
+      if (!sectionToSave) return;
+      
+      // Save all sections to maintain order
+      const updatedSections = sections.map(s => 
+        s.id === sectionId 
+          ? { ...s, data, isSaved: true }
+          : s
+      );
+      
+      console.log('Saving sections to database:', updatedSections);
+      await resumeService.saveSections(currentResumeId, updatedSections);
+      console.log('Sections saved successfully');
+      
+      // Update local state
+      setSections(updatedSections);
+    } catch (error) {
+      console.error('Error saving section:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Add new section
@@ -263,10 +397,13 @@ export default function ResumeBuilder({ onLatexChange }) {
     const newSection = {
       id: `${type}-${Date.now()}`,
       type,
-      data: type === 'summary' ? { content: '' } : { entries: [] }
+      data: type === 'summary' ? { content: '' } : { entries: [] },
+      enabled: true,
+      isSaved: false
     };
     setSections(prev => [...prev, newSection]);
     setShowAddSection(false);
+    setActiveSection(newSection.id); // Automatically open new section
   };
 
   // Remove section
@@ -312,6 +449,7 @@ export default function ResumeBuilder({ onLatexChange }) {
         <DndContext 
           sensors={sensors}
           collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
           <SortableContext 
@@ -333,6 +471,8 @@ export default function ResumeBuilder({ onLatexChange }) {
                     onUpdate={(data) => updateSectionData(section.id, data)}
                     onRemove={() => removeSection(section.id)}
                     onToggleEnabled={() => toggleSectionEnabled(section.id)}
+                    onSave={saveSection}
+                    user={user}
                   />
                 );
               })}
@@ -341,67 +481,39 @@ export default function ResumeBuilder({ onLatexChange }) {
         </DndContext>
       </div>
 
-      {/* Add Section Modal */}
-      <AnimatePresence>
-        {showAddSection && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowAddSection(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6"
-            >
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-                Add New Section
-              </h3>
+      {/* Add Section Dialog */}
+      <Dialog open={showAddSection} onOpenChange={setShowAddSection}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Section</DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid grid-cols-2 gap-3">
+            {Object.entries(SECTION_TYPES).map(([key, sectionType]) => {
+              const Icon = sectionType.icon;
+              const isAdded = sections.some(s => s.type === key);
               
-              <div className="grid grid-cols-2 gap-3">
-                {Object.entries(SECTION_TYPES).map(([key, sectionType]) => {
-                  const Icon = sectionType.icon;
-                  const isAdded = sections.some(s => s.type === key);
-                  
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => addSection(key)}
-                      disabled={isAdded && sectionType.required}
-                      className={`p-3 rounded-lg border-2 transition-all text-left ${
-                        isAdded && sectionType.required
-                          ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                          : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50 dark:border-gray-600 dark:hover:border-blue-400'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <Icon className="w-4 h-4" />
-                        <span className="font-medium text-sm">{sectionType.title}</span>
-                      </div>
-                      {isAdded && sectionType.required && (
-                        <span className="text-xs text-gray-400">Already added</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
-                <button
-                  onClick={() => setShowAddSection(false)}
-                  className="w-full px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              return (
+                <Button
+                  key={key}
+                  variant="outline"
+                  className="h-auto p-4 flex flex-col items-start gap-2"
+                  onClick={() => addSection(key)}
+                  disabled={isAdded && sectionType.required}
                 >
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                  <div className="flex items-center gap-2">
+                    <Icon className="w-4 h-4" />
+                    <span className="font-medium text-sm">{sectionType.title}</span>
+                  </div>
+                  {isAdded && sectionType.required && (
+                    <span className="text-xs text-muted-foreground">Already added</span>
+                  )}
+                </Button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

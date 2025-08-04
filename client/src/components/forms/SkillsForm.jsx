@@ -1,125 +1,297 @@
-import React from 'react';
-import { Plus, Trash2, Award, Code, Database, Cloud } from 'lucide-react';
+import React, { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
+import { Plus, Trash2, Award, Code, Database, Cloud, Star, StarHalf, BookOpen } from 'lucide-react'
 
-export default function SkillsForm({ data, onChange }) {
-  const categories = data.categories || {};
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 
-  const addCategory = () => {
-    const categoryName = prompt('Enter category name (e.g., Programming, Tools, etc.):');
-    if (categoryName) {
-      onChange({
-        categories: {
-          ...categories,
-          [categoryName]: { advanced: [], intermediate: [] }
-        }
-      });
+// Skills validation schema
+const skillsFormSchema = z.object({
+  categories: z.record(z.object({
+    advanced: z.array(z.string()).optional(),
+    intermediate: z.array(z.string()).optional()
+  })).optional()
+})
+
+// Predefined category suggestions with icons
+const CATEGORY_SUGGESTIONS = [
+  { name: 'Programming', icon: Code, description: 'Languages & Frameworks' },
+  { name: 'Developer Tools', icon: Database, description: 'IDEs, Version Control, etc.' },
+  { name: 'Cloud & DevOps', icon: Cloud, description: 'AWS, Docker, CI/CD' },
+  { name: 'Soft Skills', icon: BookOpen, description: 'Communication, Leadership' }
+]
+
+export default function NewSkillsForm({ data, onChange }) {
+  const [showAddDialog, setShowAddDialog] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+
+  const form = useForm({
+    resolver: zodResolver(skillsFormSchema),
+    defaultValues: {
+      categories: data?.categories || {}
     }
-  };
+  })
 
-  const updateCategory = (categoryName, level, skills) => {
-    onChange({
-      categories: {
-        ...categories,
-        [categoryName]: {
-          ...categories[categoryName],
-          [level]: skills
-        }
+  // Watch form values for real-time updates
+  const watchedValues = form.watch()
+
+  // Update parent component when form changes
+  React.useEffect(() => {
+    if (onChange) {
+      onChange(watchedValues)
+    }
+  }, [watchedValues, onChange])
+
+  const addCategory = (categoryName) => {
+    if (categoryName && !watchedValues.categories?.[categoryName]) {
+      const newCategories = {
+        ...watchedValues.categories,
+        [categoryName]: { advanced: [], intermediate: [] }
       }
-    });
-  };
+      form.setValue('categories', newCategories)
+      setNewCategoryName('')
+      setShowAddDialog(false)
+    }
+  }
 
   const removeCategory = (categoryName) => {
-    const newCategories = { ...categories };
-    delete newCategories[categoryName];
-    onChange({ categories: newCategories });
-  };
+    const newCategories = { ...watchedValues.categories }
+    delete newCategories[categoryName]
+    form.setValue('categories', newCategories)
+  }
+
+  const updateSkills = (categoryName, level, skillsString) => {
+    const skillsArray = skillsString ? skillsString.split(',').map(s => s.trim()).filter(s => s) : []
+    const newCategories = {
+      ...watchedValues.categories,
+      [categoryName]: {
+        ...watchedValues.categories[categoryName],
+        [level]: skillsArray
+      }
+    }
+    form.setValue('categories', newCategories)
+  }
+
+  const getTotalSkillsCount = () => {
+    if (!watchedValues.categories) return 0
+    return Object.values(watchedValues.categories).reduce((total, category) => {
+      return total + (category.advanced?.length || 0) + (category.intermediate?.length || 0)
+    }, 0)
+  }
+
+  const categories = watchedValues.categories || {}
+  const categoryEntries = Object.entries(categories)
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Technical Skills</h3>
-        <button
-          onClick={addCategory}
-          className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Add Category
-        </button>
-      </div>
-
-      <div className="space-y-4">
-        {Object.entries(categories).map(([categoryName, categoryData]) => (
-          <div key={categoryName} className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
-                <Award className="w-4 h-4" />
-                {categoryName}
-              </h4>
-              <button
-                onClick={() => removeCategory(categoryName)}
-                className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+    <div className="space-y-6">
+      <Form {...form}>
+        <form className="space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Award className="w-5 h-5 text-primary" />
+              <h3 className="text-lg font-semibold">Technical Skills</h3>
             </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Advanced Level Skills
-                </label>
-                <input
-                  type="text"
-                  value={categoryData.advanced?.join(', ') || ''}
-                  onChange={(e) => updateCategory(categoryName, 'advanced', e.target.value.split(', ').filter(s => s.trim()))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-600 dark:text-white"
-                  placeholder="C++, SQL, Python, TypeScript"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Intermediate Level Skills
-                </label>
-                <input
-                  type="text"
-                  value={categoryData.intermediate?.join(', ') || ''}
-                  onChange={(e) => updateCategory(categoryName, 'intermediate', e.target.value.split(', ').filter(s => s.trim()))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-600 dark:text-white"
-                  placeholder="Java, C#"
-                />
-              </div>
+            <div className="flex items-center gap-3">
+              <Badge variant="secondary" className="text-xs">
+                {getTotalSkillsCount()} skills total
+              </Badge>
+              <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Add Category
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add Skill Category</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Input
+                        placeholder="Enter category name (e.g., Programming, Tools)"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            addCategory(newCategoryName)
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={() => addCategory(newCategoryName)}>
+                        Add Category
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
-        ))}
-      </div>
 
-      {Object.keys(categories).length === 0 && (
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          <Award className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>No skill categories yet. Click "Add Category" to get started.</p>
-        </div>
-      )}
+          {/* Skill Categories */}
+          <div className="space-y-4">
+            {categoryEntries.map(([categoryName, categoryData]) => {
+              const advancedCount = categoryData.advanced?.length || 0
+              const intermediateCount = categoryData.intermediate?.length || 0
+              
+              return (
+                <Card key={categoryName}>
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Award className="w-4 h-4" />
+                        {categoryName}
+                        <div className="flex items-center gap-1 ml-2">
+                          {advancedCount > 0 && (
+                            <Badge variant="default" className="text-xs gap-1">
+                              <Star className="w-3 h-3" />
+                              {advancedCount}
+                            </Badge>
+                          )}
+                          {intermediateCount > 0 && (
+                            <Badge variant="secondary" className="text-xs gap-1">
+                              <StarHalf className="w-3 h-3" />
+                              {intermediateCount}
+                            </Badge>
+                          )}
+                        </div>
+                      </CardTitle>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeCategory(categoryName)}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-4">
+                    {/* Advanced Skills */}
+                    <div>
+                      <FormLabel className="flex items-center gap-2 mb-2">
+                        <Star className="w-4 h-4 text-yellow-500" />
+                        Advanced Level Skills
+                      </FormLabel>
+                      <Input
+                        value={categoryData.advanced?.join(', ') || ''}
+                        onChange={(e) => updateSkills(categoryName, 'advanced', e.target.value)}
+                        placeholder="C++, SQL, Python, TypeScript"
+                        className="font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Separate skills with commas. These are your strongest competencies.
+                      </p>
+                    </div>
 
-      {/* Default Categories Suggestion */}
-      {Object.keys(categories).length === 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {['Programming', 'Developer Tools', 'Frontend/Backend', 'Soft Skills'].map(category => (
-            <button
-              key={category}
-              onClick={() => onChange({
-                categories: {
-                  ...categories,
-                  [category]: { advanced: [], intermediate: [] }
-                }
-              })}
-              className="p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-      )}
+                    {/* Intermediate Skills */}
+                    <div>
+                      <FormLabel className="flex items-center gap-2 mb-2">
+                        <StarHalf className="w-4 h-4 text-blue-500" />
+                        Intermediate Level Skills
+                      </FormLabel>
+                      <Input
+                        value={categoryData.intermediate?.join(', ') || ''}
+                        onChange={(e) => updateSkills(categoryName, 'intermediate', e.target.value)}
+                        placeholder="Java, C#, Go"
+                        className="font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Skills you're comfortable with but still developing.
+                      </p>
+                    </div>
+
+                    {/* Preview */}
+                    {(advancedCount > 0 || intermediateCount > 0) && (
+                      <>
+                        <Separator />
+                        <div className="p-3 bg-muted/50 rounded-lg">
+                          <h5 className="text-sm font-medium mb-2">Preview</h5>
+                          <div className="space-y-2">
+                            {advancedCount > 0 && (
+                              <div className="text-sm">
+                                <span className="font-medium">Advanced:</span>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {categoryData.advanced.map((skill, index) => (
+                                    <Badge key={index} variant="default" className="text-xs">
+                                      {skill}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {intermediateCount > 0 && (
+                              <div className="text-sm">
+                                <span className="font-medium">Intermediate:</span>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {categoryData.intermediate.map((skill, index) => (
+                                    <Badge key={index} variant="secondary" className="text-xs">
+                                      {skill}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+
+          {/* Empty State */}
+          {categoryEntries.length === 0 && (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Award className="w-12 h-12 text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Skill Categories</h3>
+                <p className="text-muted-foreground mb-6 text-center max-w-sm">
+                  Organize your technical skills into categories to showcase your expertise effectively.
+                </p>
+                
+                {/* Quick Add Suggestions */}
+                <div className="grid grid-cols-2 gap-3 w-full max-w-md">
+                  {CATEGORY_SUGGESTIONS.map((category) => {
+                    const Icon = category.icon
+                    return (
+                      <Button
+                        key={category.name}
+                        variant="outline"
+                        className="h-auto p-4 flex flex-col items-center gap-2"
+                        onClick={() => addCategory(category.name)}
+                      >
+                        <Icon className="w-5 h-5" />
+                        <div className="text-center">
+                          <div className="font-medium text-sm">{category.name}</div>
+                          <div className="text-xs text-muted-foreground">{category.description}</div>
+                        </div>
+                      </Button>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </form>
+      </Form>
     </div>
-  );
+  )
 }
