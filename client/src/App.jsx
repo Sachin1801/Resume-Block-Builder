@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Download, Eye, FileText, Play
+  Download, Eye, FileText, Play, LogOut, User
 } from 'lucide-react';
 
 import ResumeBuilder from './components/ResumeBuilder';
+import AuthModal from './components/AuthModal';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { resumeService } from './services/resumeService';
 
 // Simplified LaTeX template for testing
 const SIMPLE_LATEX_TEMPLATE = `\\documentclass[letterpaper,11pt]{article}
@@ -158,12 +161,16 @@ function PDFViewer({ pdfUrl, isCompiling, error }) {
 }
 
 // Main App Component
-export default function App() {
+function AppContent() {
+  const { user, loading, signOut } = useAuth();
   const [latexCode, setLatexCode] = useState('');
   const [pdfUrl, setPdfUrl] = useState(null);
   const [isCompiling, setIsCompiling] = useState(false);
   const [error, setError] = useState(null);
   const [currentView, setCurrentView] = useState('builder'); // 'builder' or 'code'
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [activeResumeId, setActiveResumeId] = useState(null);
+  const [sections, setSections] = useState([]);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -262,6 +269,31 @@ export default function App() {
             </div>
             
             <div className="flex items-center gap-3">
+              {/* User Menu */}
+              {user ? (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                    <User className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                    <span className="text-sm text-gray-700 dark:text-gray-200">{user.email}</span>
+                  </div>
+                  <button
+                    onClick={signOut}
+                    className="flex items-center gap-2 px-3 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span className="text-sm">Sign Out</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+                >
+                  <User className="w-4 h-4" />
+                  Sign In
+                </button>
+              )}
+
               {/* View Toggle */}
               <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
                 <button
@@ -313,7 +345,12 @@ export default function App() {
         {/* Left Panel - Resume Builder or Code Editor */}
         <div className="flex-1 flex flex-col">
           {currentView === 'builder' ? (
-            <ResumeBuilder onLatexChange={handleLatexChange} />
+            <ResumeBuilder 
+              onLatexChange={handleLatexChange}
+              user={user}
+              activeResumeId={activeResumeId}
+              onSectionsChange={setSections}
+            />
           ) : (
             <div className="flex-1 relative">
               <textarea
@@ -362,6 +399,18 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* Auth Modal */}
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </div>
+  );
+}
+
+// Wrap App with AuthProvider
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
