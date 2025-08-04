@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 
 import ResumeBuilder from './components/ResumeBuilder';
+import ResizeHandle from './components/ResizeHandle';
 
 // Simplified LaTeX template for testing
 const SIMPLE_LATEX_TEMPLATE = `\\documentclass[letterpaper,11pt]{article}
@@ -164,6 +165,16 @@ export default function App() {
   const [isCompiling, setIsCompiling] = useState(false);
   const [error, setError] = useState(null);
   const [currentView, setCurrentView] = useState('builder'); // 'builder' or 'code'
+  
+  // Panel sizing state
+  const [leftPanelWidth, setLeftPanelWidth] = useState(() => {
+    const saved = localStorage.getItem('resumeBuilder-leftPanelWidth');
+    return saved ? parseInt(saved) : window.innerWidth * 0.65; // Default to 65% of screen width
+  });
+  
+  // Constants for panel constraints
+  const MIN_PANEL_WIDTH = 300;
+  const MIN_PDF_WIDTH = 250;
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -175,6 +186,42 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('resumeLatexCode', latexCode);
   }, [latexCode]);
+
+  // Save panel width to localStorage
+  useEffect(() => {
+    localStorage.setItem('resumeBuilder-leftPanelWidth', leftPanelWidth.toString());
+  }, [leftPanelWidth]);
+
+  // Handle window resize
+  useEffect(() => {
+    const handleWindowResize = () => {
+      const containerWidth = window.innerWidth;
+      const maxLeftWidth = containerWidth - MIN_PDF_WIDTH - 20;
+      
+      if (leftPanelWidth > maxLeftWidth) {
+        setLeftPanelWidth(Math.max(MIN_PANEL_WIDTH, maxLeftWidth));
+      }
+    };
+
+    window.addEventListener('resize', handleWindowResize);
+    return () => window.removeEventListener('resize', handleWindowResize);
+  }, [leftPanelWidth]);
+
+  // Panel resizing logic
+  const handleResize = useCallback((newWidth) => {
+    const containerWidth = window.innerWidth;
+    const maxLeftWidth = containerWidth - MIN_PDF_WIDTH - 20; // 20px for resize handle and margins
+    const constrainedWidth = Math.max(MIN_PANEL_WIDTH, Math.min(newWidth, maxLeftWidth));
+    setLeftPanelWidth(constrainedWidth);
+  }, []);
+
+  // Get current width for the resize handle
+  const getCurrentWidth = useCallback(() => {
+    return leftPanelWidth;
+  }, [leftPanelWidth]);
+
+  // Calculate PDF panel width
+  const pdfPanelWidth = window.innerWidth - leftPanelWidth - 4; // 4px for resize handle
 
   // Compile LaTeX
   const compileLatex = useCallback(async (code) => {
@@ -309,9 +356,15 @@ export default function App() {
       </header>
 
       {/* Main Content */}
-      <div className="flex h-[calc(100vh-73px)]">
+      <div className="flex flex-col lg:flex-row h-[calc(100vh-73px)]">
         {/* Left Panel - Resume Builder or Code Editor */}
-        <div className="flex-1 flex flex-col">
+        <div 
+          className="flex flex-col lg:static"
+          style={{ 
+            width: window.innerWidth >= 1024 ? `${leftPanelWidth}px` : '100%',
+            height: window.innerWidth >= 1024 ? '100%' : '50%'
+          }}
+        >
           {currentView === 'builder' ? (
             <ResumeBuilder onLatexChange={handleLatexChange} />
           ) : (
@@ -340,8 +393,22 @@ export default function App() {
           )}
         </div>
 
+        {/* Resize Handle - Only show on desktop */}
+        {window.innerWidth >= 1024 && (
+          <ResizeHandle 
+            onResize={handleResize}
+            getCurrentWidth={getCurrentWidth}
+          />
+        )}
+
         {/* Right Panel - PDF Preview */}
-        <div className="w-96 bg-gray-100 dark:bg-gray-900 shadow-xl overflow-hidden border-l border-gray-200 dark:border-gray-700">
+        <div 
+          className="bg-gray-100 dark:bg-gray-900 shadow-xl overflow-hidden border-l lg:border-l border-t lg:border-t-0 border-gray-200 dark:border-gray-700"
+          style={{ 
+            width: window.innerWidth >= 1024 ? `${pdfPanelWidth}px` : '100%',
+            height: window.innerWidth >= 1024 ? '100%' : '50%'
+          }}
+        >
           <div className="h-full flex flex-col">
             <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
