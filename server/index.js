@@ -11,8 +11,22 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Configure CORS for production
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? [
+        /\.vercel\.app$/,
+        /^https:\/\/.*\.vercel\.app$/,
+        process.env.FRONTEND_URL
+      ].filter(Boolean)
+    : ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 
 // Create temp directory if it doesn't exist
@@ -20,6 +34,42 @@ const tempDir = path.join(__dirname, 'temp');
 if (!fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir);
 }
+
+// Detect pdflatex path once at startup
+const detectPdflatexPath = () => {
+  const possiblePaths = process.env.NODE_ENV === 'production'
+    ? [
+        '/usr/bin/pdflatex',              // Ubuntu/Debian standard path
+        '/usr/local/bin/pdflatex',        // Alternative Linux path
+        'pdflatex'                        // System PATH
+      ]
+    : [
+        '/Library/TeX/texbin/pdflatex',                           // MacTeX default
+        '/usr/local/texlive/2024/bin/universal-darwin/pdflatex',  // MacTeX 2024
+        '/usr/local/texlive/2025/bin/universal-darwin/pdflatex',  // MacTeX 2025
+        '/usr/local/texlive/2023/bin/universal-darwin/pdflatex',  // MacTeX 2023
+        '/usr/local/bin/pdflatex',                                // Homebrew
+        '/opt/homebrew/bin/pdflatex',                             // Apple Silicon Homebrew
+        '/usr/bin/pdflatex',                                      // Linux development
+        'pdflatex'                                                // System PATH
+      ];
+  
+  let pdflatexPath = process.env.NODE_ENV === 'production' 
+    ? '/usr/bin/pdflatex'  // Default for Ubuntu container
+    : '/Library/TeX/texbin/pdflatex'; // Default for macOS development
+    
+  for (const path of possiblePaths) {
+    if (fs.existsSync(path)) {
+      pdflatexPath = path;
+      console.log(`Using pdflatex at: ${pdflatexPath}`);
+      break;
+    }
+  }
+  
+  return pdflatexPath;
+};
+
+const pdflatexPath = detectPdflatexPath();
 
 // LaTeX compilation endpoint
 app.post('/compile', async (req, res) => {
@@ -35,28 +85,6 @@ app.post('/compile', async (req, res) => {
     fs.writeFileSync(debugFile, latexCode);
     console.log(`LaTeX code saved to: ${debugFile}`);
     
-    // Linux/WSL installation paths
-    const possiblePaths = [
-      '/usr/bin/pdflatex',
-      '/usr/local/bin/pdflatex',
-      '/bin/pdflatex',
-      '/usr/local/texlive/2024/bin/x86_64-linux/pdflatex',
-      '/usr/local/texlive/2023/bin/x86_64-linux/pdflatex',
-      // MacTeX paths (for macOS)
-      '/Library/TeX/texbin/pdflatex',
-      '/usr/local/texlive/2024/bin/universal-darwin/pdflatex',
-      '/opt/homebrew/bin/pdflatex'
-    ];
-    
-    let pdflatexPath = '/usr/bin/pdflatex'; // Default Linux path
-    for (const path of possiblePaths) {
-      if (fs.existsSync(path)) {
-        pdflatexPath = path;
-        console.log(`Using pdflatex at: ${pdflatexPath}`);
-        break;
-      }
-    }
-    
     // Configure LaTeX options with proper temp directory handling
     const options = {
       inputs: tempDir,
@@ -68,6 +96,11 @@ app.post('/compile', async (req, res) => {
     console.log('Compiling LaTeX with MacTeX...');
     console.log('LaTeX code length:', latexCode.length);
     console.log('First 200 chars:', latexCode.substring(0, 200));
+    
+    // Log the full LaTeX for debugging
+    console.log('\n=== FULL LATEX CONTENT ===');
+    console.log(latexCode);
+    console.log('=== END LATEX CONTENT ===\n');
     
     // Don't use timeout promise for now, let the stream handle it
     

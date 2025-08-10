@@ -33,6 +33,26 @@ const escapeLatex = (text) => {
     .replace(/\\textbackslash /g, '\\textbackslash{}');
 };
 
+// Helper function to validate and clean URLs
+const validateUrl = (url) => {
+  if (!url) return '';
+  // Remove any leading/trailing whitespace
+  url = url.trim();
+  // Check if it's a valid URL
+  try {
+    // Don't allow URLs starting with special characters
+    if (/^[;:,.<>?/\\|{}[\]`~!@#$%^&*()+=]/.test(url)) {
+      console.warn('Invalid URL rejected (starts with special char):', url);
+      return '';
+    }
+    new URL(url.startsWith('http') ? url : `https://${url}`);
+    return url;
+  } catch (e) {
+    console.warn('Invalid URL rejected:', url, e.message);
+    return ''; // Return empty string for invalid URLs
+  }
+};
+
 // Resume section types and their configurations
 const SECTION_TYPES = {
   personalInfo: {
@@ -41,7 +61,33 @@ const SECTION_TYPES = {
     icon: User,
     required: true,
     latexTemplate: (data) => {
-      if (!data.fullName && !data.email && !data.phone) return '';
+      if (!data || (!data.fullName && !data.email && !data.phone)) return '';
+      
+      const fullName = escapeLatex(data.fullName || 'Your Name');
+      const location = data.location ? escapeLatex(data.location) : '';
+      const phone = data.phone ? escapeLatex(data.phone) : '';
+      const email = data.email || '';
+      const website = validateUrl(data.website);
+      const linkedin = validateUrl(data.linkedin);
+      const github = validateUrl(data.github);
+      
+      let contactLine = '';
+      const contactParts = [];
+      
+      if (location) contactParts.push(`{\\small \\scshape ${location}}`);
+      if (phone) contactParts.push(`\\small \\raisebox{-0.2\\height}\\faPhone\\ ${phone}`);
+      
+      if (contactParts.length > 0) {
+        contactLine = contactParts.join(' \\hspace{1em} ') + ' \\\\ \\vspace{1pt}';
+      }
+      
+      const linkParts = [];
+      if (email) linkParts.push(`\\href{mailto:${email}}{\\raisebox{-0.2\\height}\\faEnvelope\\ \\underline{${escapeLatex(email)}}}`);
+      if (website) linkParts.push(`\\href{${website}}{\\raisebox{-0.2\\height}\\faGlobe\\ \\underline{Portfolio Website}}`);
+      if (linkedin) linkParts.push(`\\href{${linkedin}}{\\raisebox{-0.2\\height}\\faLinkedin\\ \\underline{${escapeLatex(linkedin.split('/').pop() || 'linkedin')}}}`);
+      if (github) linkParts.push(`\\href{${github}}{\\raisebox{-0.2\\height}\\faGithub\\ \\underline{${escapeLatex(github.split('/').pop() || 'github')}}}`);
+      
+      const linksLine = linkParts.join(' ~ ');
       
       return `
 \\begin{center}
@@ -51,8 +97,12 @@ const SECTION_TYPES = {
     \\href{${data.website}}{\\raisebox{-0.2\\height}\\faGlobe\\ \\underline{${data.website}}}` : ''}${data.linkedin ? ` ~
     \\href{${data.linkedin}}{\\raisebox{-0.2\\height}\\faLinkedin\\ \\underline{${data.linkedin.split('/').pop() || 'linkedin'}}}` : ''}${data.github ? ` ~
     \\href{${data.github}}{\\raisebox{-0.2\\height}\\faGithub\\ \\underline{${data.github.split('/').pop() || 'github'}}}` : ''}
+    {\\vspace{-28pt}
+    \\Huge \\scshape ${fullName}} \\\\ \\vspace{1pt}
+    ${contactLine}
+    ${linksLine}
     \\vspace{-8pt}
-\\end{center}`
+\\end{center}`;
     }
   },
   
@@ -65,6 +115,7 @@ const SECTION_TYPES = {
       if (!data.content || !data.content.trim()) return '';
       return `
 \\section{Summary}
+${escapeLatex(data.content)}
 ${escapeLatex(data.content)}
 \\vspace{-6pt}`;
     }
@@ -89,8 +140,11 @@ ${enabledEntries.map(entry => `
   \\resumeSubheading
     {${escapeLatex(entry.institution || 'Institution')}}{${entry.startDate || 'Start'} - ${entry.endDate || 'End'}${entry.expected ? ' (Expected)' : ''}}
     {${escapeLatex(entry.degree || 'Degree')}${entry.gpa ? `, \\textbf{GPA: ${entry.gpa}}` : ''}}{${escapeLatex(entry.location || 'Location')}}
+    {${escapeLatex(entry.institution || 'Institution')}}{${escapeLatex(entry.startDate || 'Start')} - ${escapeLatex(entry.endDate || 'End')}}
+    {${escapeLatex(entry.degree || 'Degree')}${entry.gpa ? `, \\textbf{GPA: ${escapeLatex(entry.gpa)}}` : ''}}{${escapeLatex(entry.location || 'Location')}}
     ${entry.coursework ? `\\resumeItemListStart
       \\resumeItem{\\textbf{Coursework}: ${escapeLatex(entry.coursework)}}
+      \\resumeItem{Coursework: ${escapeLatex(entry.coursework)}}
     \\resumeItemListEnd` : ''}
 `).join('')}
 \\resumeSubHeadingListEnd
@@ -117,7 +171,10 @@ ${enabledEntries.map(entry => `
   \\resumeSubheading
     {${escapeLatex(entry.company || 'Company')}}{${entry.startDate || 'Start'} – ${entry.endDate || 'End'}}
     {${escapeLatex(entry.position || 'Position')}${entry.technologies ? ` $|$ \\emph{${escapeLatex(entry.technologies)}}` : ''}}{}
+    {${escapeLatex(entry.company || 'Company')}}{${escapeLatex(entry.startDate || 'Start')} – ${escapeLatex(entry.endDate || 'End')}}
+    {${escapeLatex(entry.position || 'Position')}}{}
     ${entry.achievements && entry.achievements.length > 0 && entry.achievements.some(a => a.trim()) ? `\\resumeItemListStart
+${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeItem{${escapeLatex(achievement)}}`).join('\n')}
 ${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeItem{${escapeLatex(achievement)}}`).join('\n')}
     \\resumeItemListEnd` : ''}
     \\vspace{-5pt}
@@ -144,7 +201,13 @@ ${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeIte
 ${enabledEntries.map((entry, index) => `
   \\resumeProjectHeading
     {${entry.url ? `\\href{${entry.url}}{\\textbf{${escapeLatex(entry.name || 'Project')}}}` : `\\textbf{${escapeLatex(entry.name || 'Project')}}`} $|$ \\emph{${escapeLatex(entry.technologies || 'Technologies')}}}{${entry.date || 'Date'}}
+    {${(() => {
+      const validUrl = validateUrl(entry.url);
+      const projectName = escapeLatex(entry.name || 'Project');
+      return validUrl ? `\\href{${validUrl}}{\\textbf{${projectName}}}` : `\\textbf{${projectName}}`;
+    })()} $|$ \\emph{${escapeLatex(entry.technologies || 'Technologies')}}}{${escapeLatex(entry.date || 'Date')}}
     ${entry.achievements && entry.achievements.length > 0 && entry.achievements.some(a => a.trim()) ? `\\resumeItemListStart
+${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeItem{${escapeLatex(achievement)}}`).join('\n')}
 ${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeItem{${escapeLatex(achievement)}}`).join('\n')}
     \\resumeItemListEnd` : ''}
     \\vspace{${index === enabledEntries.length - 1 ? '-6pt' : '-16pt'}}
@@ -186,6 +249,16 @@ ${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeIte
         \\hspace*{0.5cm}\\textit{Advanced:} ${(frameworks.advanced || []).map(s => escapeLatex(s)).join(', ')} \\\\
         ${frameworks.intermediate?.length ? `\\hspace*{0.5cm}\\textit{Intermediate:} ${frameworks.intermediate.map(s => escapeLatex(s)).join(', ')}` : ''}` : ''}
     }}
+  \\small{\\item{
+${Object.entries(data.categories).filter(([category, skills]) => 
+  (skills.advanced && skills.advanced.length > 0) || (skills.intermediate && skills.intermediate.length > 0)
+).map(([category, skills]) => {
+  const advancedText = skills.advanced?.length ? `\\textit{\\textbf{Advanced}}: ${skills.advanced.map(s => escapeLatex(s)).join(', ')}` : '';
+  const intermediateText = skills.intermediate?.length ? `\\textit{\\textbf{Intermediate}}: ${skills.intermediate.map(s => escapeLatex(s)).join(', ')}` : '';
+  const separator = advancedText && intermediateText ? ' ' : '';
+  return `     \\textbf{${escapeLatex(category)}}{: ${advancedText}${separator}${intermediateText}} \\\\`;
+}).join('\n')}
+  }}
 \\end{itemize}
 \\vspace{-16pt}`;
     }
@@ -216,6 +289,14 @@ ${validEntries.map((entry, index) => {
         ` : ''}${entry.citation ? `\\hspace*{0.5cm}\\textbf{${escapeLatex(entry.citation)}}` : ''}`;
 }).join('\n        \n        \\vspace{3pt}\n        \n')}
     }}
+\\begin{itemize}[leftmargin=0.10in, label={}]
+\\small{\\item
+\\resumeItemListStart
+${validEntries.map(entry => 
+  `\\resumeItem{${validateUrl(entry.url) ? `\\href{${validateUrl(entry.url)}}{\\textbf{${escapeLatex(entry.title)}}` : `\\textbf{${escapeLatex(entry.title)}`}${entry.description ? ` \\\\ ${escapeLatex(entry.description)}` : ''}}`
+).join('\n')}
+\\resumeItemListEnd
+}
 \\end{itemize}
 \\vspace{-16pt}`;
     }

@@ -67,8 +67,22 @@ export default function NewSkillsForm({ data, onChange }) {
     form.setValue('categories', newCategories)
   }
 
-  const updateSkills = (categoryName, level, skillsString) => {
-    const skillsArray = skillsString ? skillsString.split(',').map(s => s.trim()).filter(s => s) : []
+  const updateSkills = (categoryName, level, value) => {
+    console.log('Updating skills:', categoryName, level, 'Value:', JSON.stringify(value))
+    // Don't split until user is done typing - only split on blur
+    const newCategories = {
+      ...watchedValues.categories,
+      [categoryName]: {
+        ...watchedValues.categories[categoryName],
+        [level]: [value] // Temporarily store as single string
+      }
+    }
+    form.setValue('categories', newCategories)
+  }
+  
+  const handleSkillsBlur = (categoryName, level, value) => {
+    // Split into array when user finishes typing
+    const skillsArray = value ? value.split(';').map(s => s.trim()).filter(s => s) : []
     const newCategories = {
       ...watchedValues.categories,
       [categoryName]: {
@@ -189,13 +203,18 @@ export default function NewSkillsForm({ data, onChange }) {
                         Advanced Level Skills
                       </FormLabel>
                       <Input
-                        value={categoryData.advanced?.join(', ') || ''}
+                        value={
+                          Array.isArray(categoryData.advanced) 
+                            ? categoryData.advanced.join('; ') 
+                            : categoryData.advanced || ''
+                        }
                         onChange={(e) => updateSkills(categoryName, 'advanced', e.target.value)}
-                        placeholder="C++, SQL, Python, TypeScript"
+                        onBlur={(e) => handleSkillsBlur(categoryName, 'advanced', e.target.value)}
+                        placeholder="C++; SQL; Python; TypeScript"
                         className="font-mono text-sm"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        Separate skills with commas. These are your strongest competencies.
+                        Separate skills with semicolons (;). These are your strongest competencies.
                       </p>
                     </div>
 
@@ -206,13 +225,18 @@ export default function NewSkillsForm({ data, onChange }) {
                         Intermediate Level Skills
                       </FormLabel>
                       <Input
-                        value={categoryData.intermediate?.join(', ') || ''}
+                        value={
+                          Array.isArray(categoryData.intermediate) 
+                            ? categoryData.intermediate.join('; ') 
+                            : categoryData.intermediate || ''
+                        }
                         onChange={(e) => updateSkills(categoryName, 'intermediate', e.target.value)}
-                        placeholder="Java, C#, Go"
+                        onBlur={(e) => handleSkillsBlur(categoryName, 'intermediate', e.target.value)}
+                        placeholder="Java; C#; Go"
                         className="font-mono text-sm"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        Skills you're comfortable with but still developing.
+                        Skills you're comfortable with but still developing. Separate with semicolons (;).
                       </p>
                     </div>
 
