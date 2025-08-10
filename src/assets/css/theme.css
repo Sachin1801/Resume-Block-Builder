@@ -1,0 +1,339 @@
+/* Theme Variables */
+:root[data-theme="dark"] {
+  /* Main backgrounds */
+  --bg-primary: #1e1e1e;
+  --bg-secondary: #252526;
+  --bg-tertiary: #2d2d30;
+  --bg-sidebar: #252526;
+  --bg-editor: #1e1e1e;
+  --bg-console: #1e1e1e;
+  --bg-tree: #252526;
+  --bg-hover: #2a2d2e;
+  --bg-selected: #094771;
+  --bg-toolbar: #2d2d30;
+  
+  /* Text colors */
+  --text-primary: #cccccc;
+  --text-secondary: #969696;
+  --text-disabled: #6b6b6b;
+  --text-highlight: #ffffff;
+  
+  /* Border colors */
+  --border-primary: #3c3c3c;
+  --border-secondary: #464647;
+  
+  /* Scrollbar */
+  --scrollbar-thumb: #424242;
+  --scrollbar-track: #1e1e1e;
+  
+  /* Buttons */
+  --btn-primary-bg: #0e639c;
+  --btn-primary-hover: #1177bb;
+  --btn-secondary-bg: #3c3c3c;
+  --btn-secondary-hover: #45494a;
+}
+
+:root[data-theme="light"] {
+  /* Main backgrounds */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f3f3f3;
+  --bg-tertiary: #e8e8e8;
+  --bg-sidebar: #f3f3f3;
+  --bg-editor: #ffffff;
+  --bg-console: #f8f8f8;
+  --bg-tree: #f3f3f3;
+  --bg-hover: #e8e8e8;
+  --bg-selected: #add6ff;
+  --bg-toolbar: #f3f3f3;
+  
+  /* Text colors */
+  --text-primary: #333333;
+  --text-secondary: #6b6b6b;
+  --text-disabled: #9d9d9d;
+  --text-highlight: #000000;
+  
+  /* Border colors */
+  --border-primary: #d4d4d4;
+  --border-secondary: #e0e0e0;
+  
+  /* Scrollbar */
+  --scrollbar-thumb: #c1c1c1;
+  --scrollbar-track: #f1f1f1;
+  
+  /* Buttons */
+  --btn-primary-bg: #007acc;
+  --btn-primary-hover: #005a9e;
+  --btn-secondary-bg: #e0e0e0;
+  --btn-secondary-hover: #d0d0d0;
+}
+
+/* Apply theme to body and main containers */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* IDE specific theme applications */
+.ide-container {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Tree/Project explorer */
+.tree, .ide-project-list {
+  background-color: var(--bg-tree) !important;
+  color: var(--text-primary) !important;
+}
+
+.el-tree-node__content:hover {
+  background-color: var(--bg-hover) !important;
+}
+
+.el-tree-node.is-current > .el-tree-node__content {
+  background-color: var(--bg-selected) !important;
+}
+
+/* Editor area */
+.editor-frame, .CodeMirror {
+  background-color: var(--bg-editor) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Console area */
+.console-area, .console-frame {
+  background-color: var(--bg-console) !important;
+  color: var(--text-primary) !important;
+}
+
+.console-sidebar {
+  background-color: var(--bg-secondary) !important;
+}
+
+/* Toolbar */
+.toolbar, .top-toolbar {
+  background-color: var(--bg-toolbar) !important;
+  border-bottom: 1px solid var(--border-primary) !important;
+}
+
+/* Tabs */
+.el-tabs__item {
+  color: var(--text-secondary) !important;
+}
+
+.el-tabs__item.is-active {
+  color: var(--text-primary) !important;
+  background-color: var(--bg-selected) !important;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb) !important;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track) !important;
+}
+
+/* Dialogs */
+.dialog-content {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+.dialog-input {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-primary) !important;
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: var(--btn-primary-bg) !important;
+  color: white !important;
+}
+
+.btn-primary:hover {
+  background-color: var(--btn-primary-hover) !important;
+}
+
+.btn-secondary {
+  background-color: var(--btn-secondary-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+.btn-secondary:hover {
+  background-color: var(--btn-secondary-hover) !important;
+}
+
+/* Light mode specific overrides for CodeMirror */
+[data-theme="light"] .CodeMirror {
+  color: #333 !important;
+  background-color: #ffffff !important;
+}
+
+[data-theme="light"] .CodeMirror-gutters {
+  background-color: #f7f7f7 !important;
+  border-right: 1px solid #ddd !important;
+}
+
+[data-theme="light"] .CodeMirror-gutter {
+  background-color: #f7f7f7 !important;
+}
+
+[data-theme="light"] .CodeMirror-linenumber {
+  color: #999 !important;
+}
+
+[data-theme="light"] .CodeMirror-cursor {
+  border-left: 1px solid #333 !important;
+}
+
+[data-theme="light"] .CodeMirror-activeline-background {
+  background: #e8f2ff !important;
+}
+
+[data-theme="light"] .CodeMirror-selected {
+  background: #d7d4f0 !important;
+}
+
+/* Light mode syntax highlighting */
+[data-theme="light"] .cm-comment {
+  color: #008000 !important;
+}
+
+[data-theme="light"] .cm-keyword {
+  color: #0000ff !important;
+}
+
+[data-theme="light"] .cm-string {
+  color: #a31515 !important;
+}
+
+[data-theme="light"] .cm-number {
+  color: #098658 !important;
+}
+
+[data-theme="light"] .cm-variable {
+  color: #001080 !important;
+}
+
+[data-theme="light"] .cm-def {
+  color: #795e26 !important;
+}
+
+[data-theme="light"] .cm-operator {
+  color: #000000 !important;
+}
+
+[data-theme="light"] .cm-builtin {
+  color: #267f99 !important;
+}
+
+/* Dark mode syntax highlighting */
+[data-theme="dark"] .CodeMirror {
+  background-color: #1e1e1e !important;
+  color: #d4d4d4 !important;
+}
+
+[data-theme="dark"] .CodeMirror-gutters {
+  background-color: #1e1e1e !important;
+  border-right: 1px solid #464647 !important;
+}
+
+[data-theme="dark"] .CodeMirror-gutter {
+  background-color: #1e1e1e !important;
+}
+
+[data-theme="dark"] .CodeMirror-linenumber {
+  color: #858585 !important;
+}
+
+[data-theme="dark"] .cm-comment {
+  color: #6a9955 !important;
+}
+
+[data-theme="dark"] .cm-keyword {
+  color: #569cd6 !important;
+}
+
+[data-theme="dark"] .cm-string {
+  color: #ce9178 !important;
+}
+
+[data-theme="dark"] .cm-number {
+  color: #b5cea8 !important;
+}
+
+[data-theme="dark"] .cm-variable {
+  color: #9cdcfe !important;
+}
+
+[data-theme="dark"] .cm-def {
+  color: #dcdcaa !important;
+}
+
+[data-theme="dark"] .cm-operator {
+  color: #d4d4d4 !important;
+}
+
+[data-theme="dark"] .cm-builtin {
+  color: #4ec9b0 !important;
+}
+
+/* Tab close icons visibility fix */
+[data-theme="light"] .el-tabs__item .is-icon-close {
+  color: #606266 !important;
+  width: 16px !important;
+  height: 16px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+  transition: all 0.2s ease !important;
+}
+
+[data-theme="light"] .el-tabs__item.is-active .is-icon-close {
+  color: #303133 !important;
+}
+
+[data-theme="light"] .el-tabs__item .is-icon-close:hover {
+  background-color: rgba(0, 0, 0, 0.15) !important;
+  color: #000000 !important;
+}
+
+[data-theme="dark"] .el-tabs__item .is-icon-close {
+  color: #909399 !important;
+  width: 16px !important;
+  height: 16px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+  transition: all 0.2s ease !important;
+}
+
+[data-theme="dark"] .el-tabs__item.is-active .is-icon-close {
+  color: #cccccc !important;
+}
+
+[data-theme="dark"] .el-tabs__item .is-icon-close:hover {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+}
+
+/* Fix close icon SVG color */
+[data-theme="light"] .el-icon.is-icon-close svg {
+  fill: currentColor !important;
+}
+
+[data-theme="dark"] .el-icon.is-icon-close svg {
+  fill: currentColor !important;
+}
+
+/* Status bar */
+.status-bar {
+  background-color: var(--bg-secondary) !important;
+  border-top: 1px solid var(--border-primary) !important;
+  color: var(--text-secondary) !important;
+}
