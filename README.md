@@ -1,4 +1,6 @@
-# LaTeX Resume Builder - Quick Setup Guide
+# 📄 Advanced Resume Builder
+
+A modern, full-stack resume builder with LaTeX compilation, user authentication, and cloud storage. Build professional resumes with drag-and-drop sections, real-time PDF preview, and seamless deployment.
 
 ## Prerequisites
 
@@ -8,117 +10,131 @@
    - **macOS**: Install [MacTeX](https://www.tug.org/mactex/) via `brew install --cask mactex`
    - **Linux**: Install TeX Live via `sudo apt-get install texlive-full` (Ubuntu/Debian) or equivalent
 
-## Quick Start (Hackathon Style!)
+## 🚀 Quick Start
 
-### 1. Clone and Setup
+### Local Development
 
+1. **Clone the repository**
 ```bash
-# Create project directory
-mkdir latex-resume-builder
-cd latex-resume-builder
-
-# Create client and server directories
-mkdir client server
+git clone <your-repo-url>
+cd Resume-Block-Builder
 ```
 
-### 2. Setup Frontend
-
+2. **Install dependencies**
 ```bash
-cd client
-
-# Initialize Vite React project
-npm create vite@latest . -- --template react
-
-# Install dependencies
+# Install backend dependencies
+cd server
 npm install
 
-# Copy the package.json dependencies from the artifact above
-# Then run:
+# Install frontend dependencies
+cd ../client
 npm install
-
-# Create necessary files:
-# - Copy App.jsx from the artifact
-# - Copy tailwind.config.js from the artifact
-# - Add Tailwind directives to src/index.css:
 ```
 
-Add to `src/index.css`:
-```css
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-```
-
-### 3. Setup Backend
-
+3. **Set up environment variables**
 ```bash
-cd ../server
+# Copy environment templates
+cp server/env.example server/.env
+cp client/env.example client/.env.local
 
-# Copy package.json from the artifact
-npm install
-
-# Copy index.js from the artifact
+# Edit the files with your Supabase credentials
 ```
 
-### 4. Run the Application
-
-**Terminal 1 - Backend:**
+4. **Start development servers**
 ```bash
+# Terminal 1 - Backend
 cd server
 npm run dev
-```
 
-**Terminal 2 - Frontend:**
-```bash
+# Terminal 2 - Frontend  
 cd client
 npm run dev
 ```
 
-### 5. Access the App
+5. **Access the application**
+   - Frontend: http://localhost:5173
+   - Backend: http://localhost:3001
+   - Health Check: http://localhost:3001/health
 
-Open http://localhost:5173 in your browser
+### 🐳 Docker Development (Recommended)
 
-## Features Implemented
+```bash
+# Start all services with Docker
+docker-compose up --build
 
-✅ **Drag & Drop Components** - Pre-built LaTeX components for resume sections
-✅ **Custom Component Creator** - Create your own draggable LaTeX snippets
-✅ **Live LaTeX Editor** - Syntax highlighted code editor
-✅ **Real-time PDF Preview** - See changes as you type (1.5s debounce)
-✅ **Local Storage** - Auto-saves your work
-✅ **Download PDF** - Export your resume as PDF
-✅ **Beautiful UI** - Gradient effects, animations, dark mode ready
+# Or use the deployment script
+./scripts/deploy.sh dev
+```
 
-## Project Structure
+## 🌐 Production Deployment
+
+This application uses a **hybrid deployment strategy**:
+- **Frontend**: Vercel (static hosting)  
+- **Backend**: Railway (containerized with LaTeX)
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
+
+## ✨ Features
+
+✅ **Modern Resume Builder** - Drag & drop sections with form-based editing
+✅ **User Authentication** - Google OAuth via Supabase
+✅ **Cloud Storage** - Save and manage multiple resumes
+✅ **LaTeX Compilation** - Professional PDF generation with LaTeX
+✅ **Real-time Preview** - See your resume as you build it
+✅ **Responsive Design** - Works on desktop and mobile
+✅ **Export Options** - Download PDF resumes
+✅ **Section Management** - Reorderable sections with enable/disable
+✅ **Professional Templates** - LaTeX-based formatting for ATS compatibility
+✅ **Containerized Deployment** - Docker support for easy deployment
+
+## 📁 Project Structure
 
 ```
-latex-resume-builder/
-├── client/                 # React frontend
+Resume-Block-Builder/
+├── client/                    # React frontend (Vite)
 │   ├── src/
-│   │   ├── App.jsx        # Main application
-│   │   └── index.css      # Tailwind styles
-│   └── package.json
-├── server/                # Node.js backend
-│   ├── index.js          # Express server with LaTeX compiler
-│   ├── temp/             # Temporary files (auto-created)
-│   └── package.json
+│   │   ├── components/       # React components
+│   │   ├── contexts/         # React contexts (Auth)
+│   │   ├── services/         # API services (Supabase)
+│   │   └── utils/           # Utility functions
+│   ├── Dockerfile           # Production container
+│   ├── Dockerfile.dev       # Development container
+│   └── vercel.json          # Vercel deployment config
+├── server/                   # Node.js backend (Express)
+│   ├── temp/                # LaTeX compilation directory
+│   ├── Dockerfile           # Backend container with LaTeX
+│   ├── railway.json         # Railway deployment config
+│   └── index.js             # Express server
+├── scripts/
+│   └── deploy.sh            # Deployment automation script
+├── docker-compose.yml       # Local development setup
+├── DEPLOYMENT.md            # Detailed deployment guide
+└── supabase-schema.sql      # Database schema
 ```
 
-## How It Works
+## 🔧 How It Works
 
-1. **Component Library** (Left Panel)
-   - Drag pre-built components to editor
-   - Create custom components with "Create Custom Component" button
-   - Components saved to localStorage
+### Architecture Overview
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Vercel        │    │   Railway       │    │   Supabase      │
+│   (Frontend)    │◄──►│   (Backend)     │    │   (Database)    │
+│                 │    │   + LaTeX       │    │   + Auth        │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
 
-2. **Code Editor** (Center)
-   - Drop components anywhere in the code
-   - Edit LaTeX directly
-   - Syntax highlighting with CodeMirror
+### User Flow
+1. **Authentication** - Sign in with Google via Supabase
+2. **Resume Building** - Use form-based sections or drag & drop
+3. **Real-time Preview** - LaTeX compilation to PDF preview
+4. **Cloud Storage** - Automatic saving to Supabase
+5. **Export** - Download professional PDF resumes
 
-3. **PDF Preview** (Right Panel)
-   - Compiles LaTeX to PDF on backend
-   - Updates after 1.5 seconds of no typing
-   - Shows compilation errors if any
+### Technical Flow
+1. **Frontend** (React) collects resume data through forms
+2. **Backend** (Express) compiles LaTeX to PDF using TeXLive
+3. **Database** (Supabase) stores user data and resume sections
+4. **Authentication** (Supabase Auth) handles Google OAuth
 
 ## Troubleshooting
 
