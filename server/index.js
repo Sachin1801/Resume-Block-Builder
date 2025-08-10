@@ -30,17 +30,25 @@ app.post('/compile', async (req, res) => {
   }
 
   try {
-    // MacTeX installation paths
+    // Save LaTeX code to temp file for debugging
+    const debugFile = path.join(tempDir, 'debug_latex.tex');
+    fs.writeFileSync(debugFile, latexCode);
+    console.log(`LaTeX code saved to: ${debugFile}`);
+    
+    // Linux/WSL installation paths
     const possiblePaths = [
+      '/usr/bin/pdflatex',
+      '/usr/local/bin/pdflatex',
+      '/bin/pdflatex',
+      '/usr/local/texlive/2024/bin/x86_64-linux/pdflatex',
+      '/usr/local/texlive/2023/bin/x86_64-linux/pdflatex',
+      // MacTeX paths (for macOS)
       '/Library/TeX/texbin/pdflatex',
       '/usr/local/texlive/2024/bin/universal-darwin/pdflatex',
-      '/usr/local/texlive/2025/bin/universal-darwin/pdflatex',
-      '/usr/local/texlive/2023/bin/universal-darwin/pdflatex',
-      '/usr/local/bin/pdflatex',
       '/opt/homebrew/bin/pdflatex'
     ];
     
-    let pdflatexPath = '/Library/TeX/texbin/pdflatex'; // Default MacTeX path
+    let pdflatexPath = '/usr/bin/pdflatex'; // Default Linux path
     for (const path of possiblePaths) {
       if (fs.existsSync(path)) {
         pdflatexPath = path;
@@ -114,6 +122,23 @@ Hello World! This is a test.
 
   try {
     console.log('Testing with minimal LaTeX...');
+    
+    // Find pdflatex path for test
+    const possiblePaths = [
+      '/usr/bin/pdflatex',
+      '/usr/local/bin/pdflatex',
+      '/bin/pdflatex',
+      '/Library/TeX/texbin/pdflatex'
+    ];
+    
+    let pdflatexPath = '/usr/bin/pdflatex';
+    for (const path of possiblePaths) {
+      if (fs.existsSync(path)) {
+        pdflatexPath = path;
+        break;
+      }
+    }
+    
     const options = {
       inputs: tempDir,
       cmd: pdflatexPath,

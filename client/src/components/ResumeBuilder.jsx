@@ -16,6 +16,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 
 import SortableSection from './SortableSection';
 
+// Helper function to escape LaTeX special characters
+const escapeLatex = (text) => {
+  if (!text) return '';
+  return text
+    .replace(/\\/g, '\\textbackslash ')
+    .replace(/%/g, '\\%')
+    .replace(/\$/g, '\\$')
+    .replace(/#/g, '\\#')
+    .replace(/&/g, '\\&')
+    .replace(/_/g, '\\_')
+    .replace(/\{/g, '\\{')
+    .replace(/\}/g, '\\}')
+    .replace(/~/g, '\\textasciitilde ')
+    .replace(/\^/g, '\\textasciicircum ')
+    .replace(/\\textbackslash /g, '\\textbackslash{}');
+};
+
 // Resume section types and their configurations
 const SECTION_TYPES = {
   personalInfo: {
@@ -28,11 +45,10 @@ const SECTION_TYPES = {
       
       return `
 \\begin{center}
-    {\\vspace{-28pt}
-    \\Huge \\scshape ${data.fullName || 'Your Name'}} \\\\ \\vspace{1pt}
-    ${data.location ? `{\\small \\scshape ${data.location}} \\hspace{1em}` : ''} ${data.phone ? `\\small \\raisebox{-0.2\\height}\\faPhone\\ ${data.phone}` : ''} ${data.location && data.phone ? '\\\\ \\vspace{1pt}' : ''}
+    {\\Huge \\scshape ${data.fullName || 'Your Name'}} \\\\ \\vspace{1pt}
+    ${data.location ? `{\\small \\scshape ${data.location}}` : ''} ${data.phone ? `${data.location ? ' \\hspace{1em} ' : ''}\\small \\raisebox{-0.2\\height}\\faPhone\\ ${data.phone}` : ''} ${data.location || data.phone ? '\\\\ \\vspace{1pt}' : ''}
     ${data.email ? `\\href{mailto:${data.email}}{\\raisebox{-0.2\\height}\\faEnvelope\\ \\underline{${data.email}}}` : ''}${data.website ? ` ~ 
-    \\href{${data.website}}{\\raisebox{-0.2\\height}\\faGlobe\\ \\underline{Portfolio Website}}` : ''}${data.linkedin ? ` ~
+    \\href{${data.website}}{\\raisebox{-0.2\\height}\\faGlobe\\ \\underline{${data.website}}}` : ''}${data.linkedin ? ` ~
     \\href{${data.linkedin}}{\\raisebox{-0.2\\height}\\faLinkedin\\ \\underline{${data.linkedin.split('/').pop() || 'linkedin'}}}` : ''}${data.github ? ` ~
     \\href{${data.github}}{\\raisebox{-0.2\\height}\\faGithub\\ \\underline{${data.github.split('/').pop() || 'github'}}}` : ''}
     \\vspace{-8pt}
@@ -49,7 +65,7 @@ const SECTION_TYPES = {
       if (!data.content || !data.content.trim()) return '';
       return `
 \\section{Summary}
-${data.content}
+${escapeLatex(data.content)}
 \\vspace{-6pt}`;
     }
   },
@@ -71,14 +87,14 @@ ${data.content}
 \\resumeSubHeadingListStart
 ${enabledEntries.map(entry => `
   \\resumeSubheading
-    {${entry.institution || 'Institution'}}{${entry.startDate || 'Start'} - ${entry.endDate || 'End'}}
-    {${entry.degree || 'Degree'}${entry.gpa ? `, \\textbf{GPA: ${entry.gpa}}` : ''}}{${entry.location || 'Location'}}
+    {${escapeLatex(entry.institution || 'Institution')}}{${entry.startDate || 'Start'} - ${entry.endDate || 'End'}${entry.expected ? ' (Expected)' : ''}}
+    {${escapeLatex(entry.degree || 'Degree')}${entry.gpa ? `, \\textbf{GPA: ${entry.gpa}}` : ''}}{${escapeLatex(entry.location || 'Location')}}
     ${entry.coursework ? `\\resumeItemListStart
-      \\resumeItem{Coursework: ${entry.coursework}}
+      \\resumeItem{\\textbf{Coursework}: ${escapeLatex(entry.coursework)}}
     \\resumeItemListEnd` : ''}
 `).join('')}
 \\resumeSubHeadingListEnd
-\\vspace{-17pt}`;
+\\vspace{-16pt}`;
     }
   },
   
@@ -95,16 +111,16 @@ ${enabledEntries.map(entry => `
       
       return `
 \\section{Experience}
-\\vspace{-2pt}
+\\vspace{-4pt}
 \\resumeSubHeadingListStart
 ${enabledEntries.map(entry => `
   \\resumeSubheading
-    {${entry.company || 'Company'}}{${entry.startDate || 'Start'} – ${entry.endDate || 'End'}}
-    {${entry.position || 'Position'}}{}
+    {${escapeLatex(entry.company || 'Company')}}{${entry.startDate || 'Start'} – ${entry.endDate || 'End'}}
+    {${escapeLatex(entry.position || 'Position')}${entry.technologies ? ` $|$ \\emph{${escapeLatex(entry.technologies)}}` : ''}}{}
     ${entry.achievements && entry.achievements.length > 0 && entry.achievements.some(a => a.trim()) ? `\\resumeItemListStart
-${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeItem{${achievement}}`).join('\n')}
+${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeItem{${escapeLatex(achievement)}}`).join('\n')}
     \\resumeItemListEnd` : ''}
-    \\vspace{-2pt}
+    \\vspace{-5pt}
 `).join('')}
 \\resumeSubHeadingListEnd`;
     }
@@ -125,13 +141,13 @@ ${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeIte
 \\section{Projects \\hfill \\textit{\\small (Click on Title to open project)}}
 \\vspace{-10pt}
 \\resumeSubHeadingListStart
-${enabledEntries.map(entry => `
+${enabledEntries.map((entry, index) => `
   \\resumeProjectHeading
-    {${entry.url ? `\\href{${entry.url}}{\\textbf{${entry.name || 'Project'}}}` : `\\textbf{${entry.name || 'Project'}}`} $|$ \\emph{${entry.technologies || 'Technologies'}}}{${entry.date || 'Date'}}
+    {${entry.url ? `\\href{${entry.url}}{\\textbf{${escapeLatex(entry.name || 'Project')}}}` : `\\textbf{${escapeLatex(entry.name || 'Project')}}`} $|$ \\emph{${escapeLatex(entry.technologies || 'Technologies')}}}{${entry.date || 'Date'}}
     ${entry.achievements && entry.achievements.length > 0 && entry.achievements.some(a => a.trim()) ? `\\resumeItemListStart
-${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeItem{${achievement}}`).join('\n')}
+${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeItem{${escapeLatex(achievement)}}`).join('\n')}
     \\resumeItemListEnd` : ''}
-    \\vspace{-16pt}
+    \\vspace{${index === enabledEntries.length - 1 ? '-6pt' : '-16pt'}}
 `).join('')}
 \\resumeSubHeadingListEnd`;
     }
@@ -145,26 +161,33 @@ ${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeIte
     latexTemplate: (data) => {
       if (!data.categories || Object.keys(data.categories).length === 0) return '';
       const hasContent = Object.values(data.categories).some(cat => 
-        (cat.advanced && cat.advanced.length > 0) || (cat.intermediate && cat.intermediate.length > 0)
+        (cat.advanced && cat.advanced.length > 0) || (cat.intermediate && cat.intermediate.length > 0) || (cat.mlai && cat.mlai.length > 0)
       );
       if (!hasContent) return '';
+      
+      // Group categories for better formatting
+      const languagesTech = data.categories['Languages/Technologies'] || data.categories['Programming'] || {};
+      const frameworks = data.categories['Frameworks/Platforms'] || data.categories['Platform'] || {};
+      const mlai = data.categories['ML/AI'] || {};
       
       return `
 \\section{Technical Skills}
 \\vspace{-5pt}
 \\begin{itemize}[leftmargin=0.15in, label={}]
-  \\small{\\item{
-${Object.entries(data.categories).filter(([category, skills]) => 
-  (skills.advanced && skills.advanced.length > 0) || (skills.intermediate && skills.intermediate.length > 0)
-).map(([category, skills]) => {
-  const advancedText = skills.advanced?.length ? `\\textit{\\textbf{Advanced}}: ${skills.advanced.join(', ')}` : '';
-  const intermediateText = skills.intermediate?.length ? `\\textit{\\textbf{Intermediate}}: ${skills.intermediate.join(', ')}` : '';
-  const separator = advancedText && intermediateText ? ' ' : '';
-  return `     \\textbf{${category}}{: ${advancedText}${separator}${intermediateText}} \\\\`;
-}).join('\n')}
-  }}
+    \\small{\\item{
+        ${languagesTech.advanced || languagesTech.intermediate ? `\\textbf{Languages / Technologies / Libraries:} \\\\
+        \\hspace*{0.5cm}\\textit{Advanced:} ${(languagesTech.advanced || []).map(s => escapeLatex(s)).join(', ')} \\\\
+        ${languagesTech.intermediate?.length ? `\\hspace*{0.5cm}\\textit{Intermediate:} ${languagesTech.intermediate.map(s => escapeLatex(s)).join(', ')} \\\\` : ''}
+        ${mlai.advanced?.length || mlai.intermediate?.length ? `\\hspace*{0.5cm}\\textit{ML/AI:} ${[...(mlai.advanced || []), ...(mlai.intermediate || [])].map(s => escapeLatex(s)).join(', ')}` : ''}
+        
+        \\vspace{3pt}
+        ` : ''}
+        ${frameworks.advanced || frameworks.intermediate ? `\\textbf{Frameworks / Platforms} \\\\
+        \\hspace*{0.5cm}\\textit{Advanced:} ${(frameworks.advanced || []).map(s => escapeLatex(s)).join(', ')} \\\\
+        ${frameworks.intermediate?.length ? `\\hspace*{0.5cm}\\textit{Intermediate:} ${frameworks.intermediate.map(s => escapeLatex(s)).join(', ')}` : ''}` : ''}
+    }}
 \\end{itemize}
-\\vspace{-18pt}`;
+\\vspace{-16pt}`;
     }
   },
   
@@ -184,16 +207,17 @@ ${Object.entries(data.categories).filter(([category, skills]) =>
       return `
 \\section{Achievements}
 \\vspace{-5pt}
-\\begin{itemize}[leftmargin=0.10in, label={}]
-\\small{\\item
-\\resumeItemListStart
-${validEntries.map(entry => 
-  `\\resumeItem{${entry.url ? `\\href{${entry.url}}{\\textbf{${entry.title}}}` : `\\textbf{${entry.title}}`}${entry.description ? ` \\\\ ${entry.description}` : ''}}`
-).join('\n')}
-\\resumeItemListEnd
-}
+\\begin{itemize}[leftmargin=0.15in, label={}]
+    \\small{\\item{
+${validEntries.map((entry, index) => {
+  const showDescription = entry.description && entry.description.trim() && entry.description !== entry.title;
+  return `        \\textbf{$\\bullet$} ${entry.url ? `\\href{${entry.url}}{\\textbf{${escapeLatex(entry.title)}}}` : `\\textbf{${escapeLatex(entry.title)}`} \\\\
+        ${showDescription ? `\\hspace*{0.5cm}${escapeLatex(entry.description)} \\\\
+        ` : ''}${entry.citation ? `\\hspace*{0.5cm}\\textbf{${escapeLatex(entry.citation)}}` : ''}`;
+}).join('\n        \n        \\vspace{3pt}\n        \n')}
+    }}
 \\end{itemize}
-\\vspace{-5pt}`;
+\\vspace{-16pt}`;
     }
   }
 };

@@ -56,7 +56,7 @@ const ENHANCED_LATEX_TEMPLATE = `\\documentclass[letterpaper,11pt]{article}
 \\addtolength{\\oddsidemargin}{-0.6in}
 \\addtolength{\\evensidemargin}{-0.5in}
 \\addtolength{\\textwidth}{1.19in}
-\\addtolength{\\topmargin}{-.7in}
+\\addtolength{\\topmargin}{-.85in}
 \\addtolength{\\textheight}{1.4in}
 
 \\urlstyle{same}
