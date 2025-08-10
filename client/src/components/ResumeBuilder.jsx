@@ -91,14 +91,7 @@ const SECTION_TYPES = {
       
       return `
 \\begin{center}
-    {\\Huge \\scshape ${data.fullName || 'Your Name'}} \\\\ \\vspace{1pt}
-    ${data.location ? `{\\small \\scshape ${data.location}}` : ''} ${data.phone ? `${data.location ? ' \\hspace{1em} ' : ''}\\small \\raisebox{-0.2\\height}\\faPhone\\ ${data.phone}` : ''} ${data.location || data.phone ? '\\\\ \\vspace{1pt}' : ''}
-    ${data.email ? `\\href{mailto:${data.email}}{\\raisebox{-0.2\\height}\\faEnvelope\\ \\underline{${data.email}}}` : ''}${data.website ? ` ~ 
-    \\href{${data.website}}{\\raisebox{-0.2\\height}\\faGlobe\\ \\underline{${data.website}}}` : ''}${data.linkedin ? ` ~
-    \\href{${data.linkedin}}{\\raisebox{-0.2\\height}\\faLinkedin\\ \\underline{${data.linkedin.split('/').pop() || 'linkedin'}}}` : ''}${data.github ? ` ~
-    \\href{${data.github}}{\\raisebox{-0.2\\height}\\faGithub\\ \\underline{${data.github.split('/').pop() || 'github'}}}` : ''}
-    {\\vspace{-28pt}
-    \\Huge \\scshape ${fullName}} \\\\ \\vspace{1pt}
+    {\\Huge \\scshape ${fullName}} \\\\ \\vspace{1pt}
     ${contactLine}
     ${linksLine}
     \\vspace{-8pt}
@@ -115,7 +108,6 @@ const SECTION_TYPES = {
       if (!data.content || !data.content.trim()) return '';
       return `
 \\section{Summary}
-${escapeLatex(data.content)}
 ${escapeLatex(data.content)}
 \\vspace{-6pt}`;
     }
@@ -140,11 +132,8 @@ ${enabledEntries.map(entry => `
   \\resumeSubheading
     {${escapeLatex(entry.institution || 'Institution')}}{${entry.startDate || 'Start'} - ${entry.endDate || 'End'}${entry.expected ? ' (Expected)' : ''}}
     {${escapeLatex(entry.degree || 'Degree')}${entry.gpa ? `, \\textbf{GPA: ${entry.gpa}}` : ''}}{${escapeLatex(entry.location || 'Location')}}
-    {${escapeLatex(entry.institution || 'Institution')}}{${escapeLatex(entry.startDate || 'Start')} - ${escapeLatex(entry.endDate || 'End')}}
-    {${escapeLatex(entry.degree || 'Degree')}${entry.gpa ? `, \\textbf{GPA: ${escapeLatex(entry.gpa)}}` : ''}}{${escapeLatex(entry.location || 'Location')}}
     ${entry.coursework ? `\\resumeItemListStart
       \\resumeItem{\\textbf{Coursework}: ${escapeLatex(entry.coursework)}}
-      \\resumeItem{Coursework: ${escapeLatex(entry.coursework)}}
     \\resumeItemListEnd` : ''}
 `).join('')}
 \\resumeSubHeadingListEnd
@@ -171,10 +160,7 @@ ${enabledEntries.map(entry => `
   \\resumeSubheading
     {${escapeLatex(entry.company || 'Company')}}{${entry.startDate || 'Start'} – ${entry.endDate || 'End'}}
     {${escapeLatex(entry.position || 'Position')}${entry.technologies ? ` $|$ \\emph{${escapeLatex(entry.technologies)}}` : ''}}{}
-    {${escapeLatex(entry.company || 'Company')}}{${escapeLatex(entry.startDate || 'Start')} – ${escapeLatex(entry.endDate || 'End')}}
-    {${escapeLatex(entry.position || 'Position')}}{}
     ${entry.achievements && entry.achievements.length > 0 && entry.achievements.some(a => a.trim()) ? `\\resumeItemListStart
-${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeItem{${escapeLatex(achievement)}}`).join('\n')}
 ${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeItem{${escapeLatex(achievement)}}`).join('\n')}
     \\resumeItemListEnd` : ''}
     \\vspace{-5pt}
@@ -200,14 +186,12 @@ ${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeIte
 \\resumeSubHeadingListStart
 ${enabledEntries.map((entry, index) => `
   \\resumeProjectHeading
-    {${entry.url ? `\\href{${entry.url}}{\\textbf{${escapeLatex(entry.name || 'Project')}}}` : `\\textbf{${escapeLatex(entry.name || 'Project')}}`} $|$ \\emph{${escapeLatex(entry.technologies || 'Technologies')}}}{${entry.date || 'Date'}}
     {${(() => {
       const validUrl = validateUrl(entry.url);
       const projectName = escapeLatex(entry.name || 'Project');
       return validUrl ? `\\href{${validUrl}}{\\textbf{${projectName}}}` : `\\textbf{${projectName}}`;
     })()} $|$ \\emph{${escapeLatex(entry.technologies || 'Technologies')}}}{${escapeLatex(entry.date || 'Date')}}
     ${entry.achievements && entry.achievements.length > 0 && entry.achievements.some(a => a.trim()) ? `\\resumeItemListStart
-${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeItem{${escapeLatex(achievement)}}`).join('\n')}
 ${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeItem{${escapeLatex(achievement)}}`).join('\n')}
     \\resumeItemListEnd` : ''}
     \\vspace{${index === enabledEntries.length - 1 ? '-6pt' : '-16pt'}}
@@ -249,16 +233,6 @@ ${entry.achievements.filter(a => a.trim()).map(achievement => `      \\resumeIte
         \\hspace*{0.5cm}\\textit{Advanced:} ${(frameworks.advanced || []).map(s => escapeLatex(s)).join(', ')} \\\\
         ${frameworks.intermediate?.length ? `\\hspace*{0.5cm}\\textit{Intermediate:} ${frameworks.intermediate.map(s => escapeLatex(s)).join(', ')}` : ''}` : ''}
     }}
-  \\small{\\item{
-${Object.entries(data.categories).filter(([category, skills]) => 
-  (skills.advanced && skills.advanced.length > 0) || (skills.intermediate && skills.intermediate.length > 0)
-).map(([category, skills]) => {
-  const advancedText = skills.advanced?.length ? `\\textit{\\textbf{Advanced}}: ${skills.advanced.map(s => escapeLatex(s)).join(', ')}` : '';
-  const intermediateText = skills.intermediate?.length ? `\\textit{\\textbf{Intermediate}}: ${skills.intermediate.map(s => escapeLatex(s)).join(', ')}` : '';
-  const separator = advancedText && intermediateText ? ' ' : '';
-  return `     \\textbf{${escapeLatex(category)}}{: ${advancedText}${separator}${intermediateText}} \\\\`;
-}).join('\n')}
-  }}
 \\end{itemize}
 \\vspace{-16pt}`;
     }
@@ -289,14 +263,6 @@ ${validEntries.map((entry, index) => {
         ` : ''}${entry.citation ? `\\hspace*{0.5cm}\\textbf{${escapeLatex(entry.citation)}}` : ''}`;
 }).join('\n        \n        \\vspace{3pt}\n        \n')}
     }}
-\\begin{itemize}[leftmargin=0.10in, label={}]
-\\small{\\item
-\\resumeItemListStart
-${validEntries.map(entry => 
-  `\\resumeItem{${validateUrl(entry.url) ? `\\href{${validateUrl(entry.url)}}{\\textbf{${escapeLatex(entry.title)}}` : `\\textbf{${escapeLatex(entry.title)}`}${entry.description ? ` \\\\ ${escapeLatex(entry.description)}` : ''}}`
-).join('\n')}
-\\resumeItemListEnd
-}
 \\end{itemize}
 \\vspace{-16pt}`;
     }
