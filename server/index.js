@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8080; // Fly.io uses port 8080 by default
 
 // Configure CORS for production
 const corsOptions = {
@@ -206,8 +206,9 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'LaTeX compiler server is running' });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`LaTeX compiler server running on http://localhost:${PORT}`);
+// Start server - Listen on all interfaces for Fly.io
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`LaTeX compiler server running on port ${PORT}`);
+  console.log('Environment:', process.env.NODE_ENV);
   console.log('Make sure you have pdflatex installed on your system!');
 });
