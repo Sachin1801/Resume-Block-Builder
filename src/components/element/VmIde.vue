@@ -14,46 +14,61 @@
       <ProjTree id="left-frame" class="left-frame float-left"
         v-on:get-item="getFile"
       ></ProjTree>
-      <div id="right-frame" class="right-frame float-right">
-        <div class="float-left top-tab">
-          <CodeTabs
-            v-if="ideInfo.codeItems.length > 0"
-            v-on:select-item="selectFile"
-            v-on:close-item="closeFile">
-          </CodeTabs>
+      <div id="right-frame" class="right-frame">
+        <!-- Editor Area -->
+        <div class="editor-area">
+          <div class="top-tab">
+            <CodeTabs
+              v-if="ideInfo.codeItems.length > 0"
+              v-on:select-item="selectFile"
+              v-on:close-item="closeFile">
+            </CodeTabs>
+          </div>
+          <div class="code-editor-frame" :style="{ height: editorHeight + 'px' }">
+            <template v-for="(item, index) in ideInfo.codeItems" :key="item.path + index">
+              <IdeEditor 
+                :codeItem="item"
+                :codeItemIndex="index"
+                :consoleLimit="consoleLimit"
+                @run-item="runPathSelected"
+                v-if="ideInfo.codeSelected.path === item.path" 
+                v-on:update-item="updateItem"></IdeEditor>
+            </template>
+          </div>
         </div>
-        <div class="float-left code-editor-frame">
-          <template v-for="(item, index) in ideInfo.codeItems" :key="item.path + index">
-            <IdeEditor 
-              :codeItem="item"
-              :codeItemIndex="index"
-              :consoleLimit="consoleLimit"
-              @run-item="runPathSelected"
-              v-if="ideInfo.codeSelected.path === item.path" 
-              v-on:update-item="updateItem"></IdeEditor>
-          </template>
+        
+        <!-- Splitter (only show when console is visible) -->
+        <HorizontalSplitter 
+          v-if="showConsole && !isMarkdown"
+          @resize="onSplitterResize"
+          ref="splitter"
+          :current-height="consoleHeight"
+          :min-height="minConsoleHeight"
+          :max-height="maxConsoleHeight"
+        />
+        
+        <!-- Console Area -->
+        <div v-if="showConsole" v-show="!isMarkdown" class="console-area" :style="{ height: consoleHeight + 'px' }">
+          <div class="console-tab">
+            <ConsoleTabs
+              v-if="ideInfo.consoleItems.length > 0"
+              v-on:select-item="selectConsole"
+              v-on:close-item="closeConsoleSafe"
+            >
+            </ConsoleTabs>
+          </div>
+          <div class="console-frame" :style="{ height: consoleFrameHeight + 'px' }">
+            <template v-for="(item, index) in ideInfo.consoleItems" :key="item.path + index">
+              <ConsoleItemEnhanced
+                :item="item" 
+                @run-item="runConsoleSelected"
+                @stop-item="stop"
+                v-if="ideInfo.consoleSelected.path === item.path && ideInfo.consoleSelected.id === item.id">
+              </ConsoleItemEnhanced>
+            </template>
+          </div>
+          <CmdRun class="result-frame" @height-changed="onCmdHeightChanged"></CmdRun>
         </div>
-        <div class="float-left console-tab" v-if="showConsole"  v-show="!isMarkdown">
-          <ConsoleTabs
-            v-if="ideInfo.consoleItems.length > 0"
-            v-on:select-item="selectConsole"
-            v-on:close-item="closeConsoleSafe"
-          >
-          </ConsoleTabs>
-          <!-- <div class="run-icon float-right" v-if="ideInfo.consoleSelected.run === false && !(ideInfo.consoleSelected.name === 'Terminal' && ideInfo.consoleSelected.path === 'Terminal')" @click="run()" title="Re-run the script pointed to by the current console"></div>
-          <div class="stop-icon float-right" v-if="ideInfo.consoleSelected.run === true" @click="stop(ideInfo.consoleSelected.id)" title="Stop the script or command running in the current console"></div> -->
-        </div>
-        <div class="float-left console-frame"  v-show="!isMarkdown">
-          <template v-for="(item, index) in ideInfo.consoleItems" :key="item.path + index">
-            <ConsoleItemEnhanced
-              :item="item" 
-              @run-item="runConsoleSelected"
-              @stop-item="stop"
-              v-if="ideInfo.consoleSelected.path === item.path && ideInfo.consoleSelected.id === item.id">
-            </ConsoleItemEnhanced>
-          </template>
-        </div>
-        <CmdRun class="float-left result-frame" v-show="!isMarkdown" @height-changed="onCmdHeightChanged"></CmdRun>
       </div>
       <DialogProjs v-if="showProjsDialog"
         @on-cancel="onCloseProjsDialog" @on-select="onSelectProj" @on-delete="onDeleteProj" 
@@ -79,6 +94,7 @@ import IdeEditor from './pages/ide/IdeEditor';
 import DialogProjs from './pages/ide/dialog/DialogProjs';
 import DialogText from './pages/ide/dialog/DialogText';
 import DialogDelete from './pages/ide/dialog/DialogDelete';
+import HorizontalSplitter from './common/HorizontalSplitter';
 const path = require('path');
 
 export default {
@@ -94,6 +110,9 @@ export default {
       dialogTips: '',
       dialogText: '',
       cmdInputHeight: 30,
+      consoleHeight: 200, // Default console height
+      minConsoleHeight: 80,
+      maxConsoleHeight: 400,
     }
   },
   components: {
@@ -107,10 +126,16 @@ export default {
     DialogProjs,
     DialogText,
     DialogDelete,
+    HorizontalSplitter,
   },
   created() {
   },
   mounted() {
+    // Load saved console height from localStorage
+    const savedHeight = localStorage.getItem('ide-console-height');
+    if (savedHeight) {
+      this.consoleHeight = Math.max(this.minConsoleHeight, Math.min(this.maxConsoleHeight, parseInt(savedHeight)));
+    }
     if (!this.wsInfo.rws) {
       this.$store.dispatch('websocket/init', {});
     }
@@ -129,6 +154,9 @@ export default {
       }
     }, 1000);
     window.addEventListener('resize', this.resize);
+    
+    // Update max console height based on window size
+    this.updateMaxConsoleHeight();
   },
   computed: {
     wsInfo() {
@@ -161,11 +189,46 @@ export default {
       this.resize();
       return show;
     },
+    editorHeight() {
+      if (this.showConsole && !this.isMarkdown) {
+        // Editor height = total available height - console height - splitter height - top tab height
+        return Math.max(200, window.innerHeight - 50 - this.consoleHeight - 6 - 26);
+      } else {
+        // Full height when no console
+        return window.innerHeight - 50 - 26; // 50px top menu, 26px top tab
+      }
+    },
+    consoleFrameHeight() {
+      // Console frame height = total console height - tab height - cmd input height
+      return Math.max(60, this.consoleHeight - 26 - this.cmdInputHeight);
+    },
   },
   methods: {
     handleThemeChange(theme) {
       // Theme change event handler - can be used for additional logic if needed
       console.log('Theme changed to:', theme);
+    },
+    updateMaxConsoleHeight() {
+      // Update max console height based on window size (70% of available space)
+      this.maxConsoleHeight = Math.floor((window.innerHeight - 150) * 0.7);
+      
+      // Ensure current console height doesn't exceed new max
+      if (this.consoleHeight > this.maxConsoleHeight) {
+        this.consoleHeight = this.maxConsoleHeight;
+      }
+    },
+    onSplitterResize(event) {
+      if (event.type === 'drag') {
+        // Update console height during drag
+        this.consoleHeight = Math.max(
+          this.minConsoleHeight, 
+          Math.min(this.maxConsoleHeight, event.height)
+        );
+      } else if (event.type === 'end') {
+        // Save to localStorage when drag ends
+        localStorage.setItem('ide-console-height', this.consoleHeight.toString());
+        this.resize(); // Trigger resize to update editor height in store
+      }
     },
     onCmdHeightChanged(height) {
       this.cmdInputHeight = height;
@@ -703,19 +766,23 @@ export default {
       }
       this.resize();
     },
+    getCurrentConsoleHeight() {
+      // Method that the splitter can call to get current height
+      return this.consoleHeight;
+    },
     resize() {
-      // const ele = document.getElementById('left-frame');
-      // if (ele !== undefined && ele !== null) {
-      //   ele.style.height = `${window.innerHeight - 30}px`;
-      // }
-      this.$store.commit('ide/setCodeHeight', this.ideInfo.consoleItems.length === 0 ? window.innerHeight - 102 : window.innerHeight - 326); // 338
-
-      // for (let i = 0; i < this.ideInfo.codeItems.length; i++) {
-      //   if (this.ideInfo.codeItems[i].codemirror !== null) {
-      //     // this.ideInfo.codeItems[i].codemirror.setSize('auto', this.ideInfo.consoleItems.length === 0 ? window.innerHeight - 120 : window.innerHeight - 355)
-      //     this.ideInfo.codeItems[i].codemirror.setSize('auto', this.ideInfo.consoleItems.length === 0 ? window.innerHeight - 102 : window.innerHeight - 338)
-      //   }
-      // }
+      // Update max console height based on new window size
+      this.updateMaxConsoleHeight();
+      
+      // Update code editor height in store for CodeMirror
+      this.$store.commit('ide/setCodeHeight', this.editorHeight);
+      
+      // Update CodeMirror instances if they exist
+      for (let i = 0; i < this.ideInfo.codeItems.length; i++) {
+        if (this.ideInfo.codeItems[i].codemirror !== null) {
+          this.ideInfo.codeItems[i].codemirror.setSize('auto', this.editorHeight);
+        }
+      }
     },
     runPathSelected() {
       let selected = false;
@@ -888,32 +955,40 @@ body {
   position: absolute;
   left: 200px;
   right: 0px;
-  /* width:90%; */
-  /* width: 100%; */
   height: 100%;
-  overflow-x: hidden;
-  overflow-y: hidden;
-  /*background-color:#e9e6d3;*/
-  background: #3C3F41;
-}
-.code-editor-frame {
-  /* position: absolute; */
-  /* width: 100%; */
-  /* position: relative; */
-  width: 100%;
-  /* height: 100%; */
-}
-.console-tab {
-  /* position: fixed; */
-  width: 100%;
-  /* bottom: 200px; */
-  background: transparent;
-  /* left: 200px; */
-  /* bottom: 232px; */
-  /* padding: 0px; */
-  /* margin: 0px; */
-  height: 26px;
   overflow: hidden;
+  background: #3C3F41;
+  display: flex;
+  flex-direction: column;
+}
+.editor-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+  overflow: hidden;
+}
+
+.code-editor-frame {
+  flex: 1;
+  width: 100%;
+  overflow: hidden;
+}
+.console-area {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  min-height: 80px;
+  overflow: hidden;
+}
+
+.console-tab {
+  height: 26px;
+  width: 100%;
+  background: transparent;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 .run-icon {
   margin-right: 20px;
@@ -932,22 +1007,14 @@ body {
   cursor: pointer;
 }
 .console-frame {
-  background-color:#e9e6d3;
+  flex: 1;
   width: 100%;
-  left: 0px;
-  bottom: 30px;
-  padding: 0px;
-  margin: 0px;
-  margin-top: 26px;
-  height: calc(200px - 60px); /* Adjusted to account for CmdRun height */
-  /* overflow-y: scroll;
-  overflow-x: scroll; */
+  background-color: #e9e6d3;
+  overflow: hidden;
+  min-height: 60px;
 }
 .result-frame {
-  /* left: 200px;
-  bottom: 0px;
-  padding: 0px;
-  margin: 0px; */
-  width: calc(100% - 200px);
+  width: 100%;
+  flex-shrink: 0;
 }
 </style>
